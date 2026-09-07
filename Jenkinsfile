@@ -1,5 +1,10 @@
 pipeline {
-  agent { label 'life-planning-windows' }
+  agent {
+    node {
+      label 'life-planning-windows'
+      customWorkspace 'G:/Current Project/Development/Life Planning CI/workspace'
+    }
+  }
   options {
     skipDefaultCheckout(true)
     disableConcurrentBuilds()
@@ -13,6 +18,8 @@ pipeline {
   }
   environment {
     NEXT_TELEMETRY_DISABLED = '1'
+    TEMP = 'G:/Current Project/Development/Life Planning CI/temp'
+    TMP = 'G:/Current Project/Development/Life Planning CI/temp'
   }
   stages {
     stage('Checkout') {
