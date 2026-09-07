@@ -1,0 +1,27 @@
+# Optional controller, loopback only. Never mount the Docker socket into the controller.
+# Provision a separate trusted agent with label life-planning for the Jenkinsfile.
+name: life-planning-ci
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: life-planning-jenkins
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8089:8080"
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx512m -Djenkins.install.runSetupWizard=true
+      JENKINS_OPTS: --prefix=/
+    volumes:
+      - jenkins-home:/var/jenkins_home
+    mem_limit: 768m
+    cpus: 0.5
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  jenkins-home:

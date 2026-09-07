@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: life-planning
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - myplan.oxytumzone.com
+      secretName: life-planning-tls
+  rules:
+    - host: myplan.oxytumzone.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: life-planning
+                port:
+                  name: http

@@ -1,0 +1,4 @@
+image     = "life-planning:replace-with-commit-sha"
+host_port = 3217
+memory_mb = 640
+env_file  = "/opt/life-planning/shared/app.env"

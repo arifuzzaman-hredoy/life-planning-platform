@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["life_planning"]
+}
+
+model User {
+  id                 String         @id @default(cuid())
+  email              String         @unique
+  name               String
+  passwordHash       String
+  timezone           String         @default("Asia/Dhaka")
+  currency           String         @default("BDT")
+  mustChangePassword Boolean        @default(true)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  entries            Entry[]
+  habitLogs          HabitLog[]
+  studySessions      StudySession[]
+  transactions       Transaction[]
+  budgets            Budget[]
+  savings            SavingGoal[]
+  dailyPlans         DailyPlan[]
+  sessions           Session[]
+
+  @@schema("life_planning")
+}
+
+model Entry {
+  id                    String         @id @default(cuid())
+  userId                String
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind                  String
+  title                 String
+  notes                 String         @default("")
+  category              String         @default("")
+  tags                  String[]       @default([])
+  status                String         @default("planned")
+  priority              String         @default("medium")
+  progress              Int            @default(0)
+  startDate             String?
+  targetDate            String?
+  period                String         @default("long_term")
+  url                   String         @default("")
+  pinned                Boolean        @default(false)
+  parentId              String?
+  parent                Entry?         @relation("Hierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children              Entry[]        @relation("Hierarchy")
+  goalId                String?
+  goal                  Entry?         @relation("GoalLink", fields: [goalId], references: [id], onDelete: SetNull)
+  linkedGoalEntries     Entry[]        @relation("GoalLink")
+  projectId             String?
+  project               Entry?         @relation("ProjectLink", fields: [projectId], references: [id], onDelete: SetNull)
+  linkedProjectEntries  Entry[]        @relation("ProjectLink")
+  details               Json           @default("{}")
+  recurrenceSourceId    String?        @unique
+  recurrenceGeneratedAt DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  habitLogs             HabitLog[]
+  studySessions         StudySession[]
+
+  @@index([userId, kind, status])
+  @@index([userId, targetDate])
+  @@schema("life_planning")
+}
+
+model HabitLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  date      String
+  count     Int
+
+  @@unique([entryId, date])
+  @@index([userId, date])
+  @@schema("life_planning")
+}
+
+model StudySession {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  date      String
+  minutes   Int
+  notes     String   @default("")
+
+  @@index([userId, date])
+  @@schema("life_planning")
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  type      String
+  amount    Decimal  @db.Decimal(14, 2)
+  category  String
+  date      String
+  currency  String   @default("BDT")
+  notes     String   @default("")
+
+  @@index([userId, date])
+  @@schema("life_planning")
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String
+  month     String
+  amount    Decimal  @db.Decimal(14, 2)
+  currency  String   @default("BDT")
+
+  @@unique([userId, category, month, currency])
+  @@schema("life_planning")
+}
+
+model SavingGoal {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  targetAmount Decimal  @db.Decimal(14, 2)
+  savedAmount  Decimal  @default(0) @db.Decimal(14, 2)
+  targetDate   String?
+  currency     String   @default("BDT")
+
+  @@index([userId])
+  @@schema("life_planning")
+}
+
+model DailyPlan {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       String
+  priorities String[] @default([])
+  schedule   String   @default("")
+  notes      String   @default("")
+  reflection String   @default("")
+
+  @@unique([userId, date])
+  @@schema("life_planning")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@schema("life_planning")
+}
+
+model LoginAudit {
+  id         String   @id @default(cuid())
+  emailHash  String
+  ipHash     String
+  successful Boolean
+  createdAt  DateTime @default(now())
+
+  @@index([emailHash, createdAt])
+  @@index([ipHash, createdAt])
+  @@schema("life_planning")
+}

@@ -1,0 +1,13 @@
+node_modules
+.next
+package-lock.json
+src/generated
+artifacts
+playwright-report
+test-results
+*.tsbuildinfo
+.env*
+.terraform
+next-env.d.ts
+.e2e
+.VSCodeCounter
