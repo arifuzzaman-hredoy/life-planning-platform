@@ -18,6 +18,8 @@ pipeline {
   }
   environment {
     NEXT_TELEMETRY_DISABLED = '1'
+    PYTHONIOENCODING = 'utf-8'
+    PYTHONUTF8 = '1'
     TEMP = 'G:/Current Project/Development/Life Planning CI/temp'
     TMP = 'G:/Current Project/Development/Life Planning CI/temp'
   }
