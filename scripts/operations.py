@@ -43,7 +43,7 @@ def postgres_environment(path: Path, allow_local: bool) -> dict[str, str]:
     local = parsed.hostname in {"127.0.0.1", "localhost", "::1"}
     params = parse_qs(parsed.query)
     return {
-        "PGHOST": parsed.hostname,
+        "PGHOST": parsed.hostname.replace("-pooler.", ".", 1) if parsed.hostname.endswith(".neon.tech") else parsed.hostname,
         "PGPORT": str(parsed.port or 5432),
         "PGDATABASE": unquote(parsed.path.lstrip("/")),
         "PGUSER": unquote(parsed.username or ""),

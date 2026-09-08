@@ -6,6 +6,8 @@ The dedicated release root is `/opt/life-planning`. The application listens on `
 
 `shared/app.env` contains only runtime secrets and configuration, owned by root:1001 with mode0640. The containing directory is root-only. Terraform receives this file's path, never its contents. State is private under `terraform/`; source-controlled provider checksums cover Linux and Windows.
 
+Runtime queries use Neon's pooled hostname. Prisma CLI operations use the direct hostname so migration advisory locks remain attached to one session; `prisma.config.ts` derives this from Neon URLs or accepts `DIRECT_DATABASE_URL`. Backup/restore clients likewise use the direct Neon host. This follows the [Prisma connection guidance](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections). Do not disable migration locking to work around pooler timeouts.
+
 1. Review/test and commit a clean revision; scan for secrets before pushing.
 2. Back up the application's database and deployment state.
 3. Build `runner` and `migrator` images, tagged with the full commit SHA.
@@ -23,11 +25,13 @@ python scripts/remote_release.py --credentials-file /private/ssh.json --known-ho
 
 The credential JSON contains `host`, `username`, and `password`; it is never committed. `--deploy` also migrates/applies/checks the release after image creation. First deployment configures the HTTPS proxy only once the local container is ready.
 
+For a new host, start with a dedicated HTTP vhost for this domain: serve `/.well-known/acme-challenge/` from `/var/www/certbot`, and return 503 for all other locations. Check DNS, back up shared Nginx configuration, and validate the new vhost before reloading. Issue the certificate with `certbot certonly --webroot -w /var/www/certbot -d myplan.oxytumzone.com` using the owner's contact email. Once the container passes readiness, replace only this project vhost with the committed HTTPS configuration, test, and gracefully reload. Install `infra/nginx/renew-life-planning.sh` as the project-specific Certbot deploy hook.
+
 ## Jenkins
 
 The controller is local to the Windows development machine at `http://127.0.0.1:8089`, with Java21, Jenkins2.568.3, authentication, no anonymous access, and one trusted executor. It runs only when that machine and the Jenkins process are available. It is deliberately not exposed through the VPS.
 
-The `life-planning` job uses the committed Jenkinsfile and a separate checkout under its private Jenkins workspace. It reads the local repository's committed main branch; uncommitted edits are never released. The job runs installation, formatting, lint, types, unit tests, Python safety tests, Terraform validation, dependency audit, isolated database integration, production build, and browser workflows. `BUILD_REMOTE=true` adds bounded remote image builds. `DEPLOY=true` additionally deploys that verified revision.
+The `life-planning` job uses the committed Jenkinsfile and a separate checkout under `G:\Current Project\Development\Life Planning CI\workspace`. Temporary build files also use that restricted directory's drive, preserving system-drive space. It reads the local repository's committed main branch; uncommitted edits are never released. The job runs installation, formatting, lint, types, unit tests, Python safety tests, Terraform validation, dependency audit, isolated database integration, production build, and browser workflows. `BUILD_REMOTE=true` adds bounded remote image builds. `DEPLOY=true` additionally deploys that verified revision.
 
 Jenkins Credentials holds `life-planning-ci-env` (separate CI database environment) and `life-planning-ssh` (SSH credential file). Host keys are pinned through `LIFE_PLANNING_KNOWN_HOSTS`. Administrator credentials and launch scripts are saved in the private local operational directory, outside this repository.
 

@@ -12,7 +12,9 @@ df -h /
 nginx -t
 ```
 
-Liveness `/api/health` checks the process. Readiness `/api/ready` checks the database. Both return limited JSON with no infrastructure secrets. Public access and errors use separate `life-planning` Nginx log files. Docker logs rotate at three10MiB files.
+Liveness `/api/health` checks the process. Readiness `/api/ready` checks the database. Both return limited JSON with no infrastructure secrets. Public access and errors use separate `life-planning` Nginx log files. Docker logs rotate at three 10 MiB files.
+
+The installed `/etc/cron.d/life-planning` runs the Python HTTPS smoke check every five minutes, saving the latest result to `/opt/life-planning/state/health.jsonl`. It also runs a database backup daily at 02:30 Asia/Dhaka, the server's verified timezone. Both jobs use their own locks. The cron definition is in `infra/cron/life-planning`. Health failures are recorded locally; external alert delivery is not configured.
 
 If readiness fails, verify Neon availability, TLS, and the runtime environment file without printing it. If the app is ready locally but unavailable publicly, test the project vhost and certificate. Do not restart unrelated containers, replace the global Nginx configuration, or change shared firewall policies.
 

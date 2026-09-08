@@ -31,6 +31,14 @@ class OperationsSafetyTests(unittest.TestCase):
             path.write_text("SESSION_SECRET=$(whoami)\n")
             self.assertEqual(env_file(path)["SESSION_SECRET"], "$(whoami)")
 
+    def test_neon_backup_connections_bypass_transaction_pooling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "app.env"
+            path.write_text("DATABASE_URL=postgresql://owner:pass@ep-example-pooler.aws.neon.tech/app\n")
+            self.assertEqual(postgres_environment(path, False)["PGHOST"], "ep-example.aws.neon.tech")
+            path.write_text("DATABASE_URL=postgresql://owner:pass@ep-example-pooler.neon.tech.example.com/app\n")
+            self.assertEqual(postgres_environment(path, False)["PGHOST"], "ep-example-pooler.neon.tech.example.com")
+
     def test_project_container_replacement_is_permitted(self):
         verify_plan({"resource_changes": [{"address": "docker_container.app", "change": {"actions": ["delete", "create"]}}]})
 

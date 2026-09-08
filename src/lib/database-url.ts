@@ -6,3 +6,10 @@ export function databaseConnectionString(value = process.env.DATABASE_URL): stri
     url.searchParams.set("sslmode", "verify-full");
   return url.toString();
 }
+
+export function migrationConnectionString(value: string): string {
+  const url = new URL(databaseConnectionString(value));
+  // Session advisory locks used by Prisma Migrate need a direct Neon connection.
+  if (url.hostname.endsWith(".neon.tech")) url.hostname = url.hostname.replace(/-pooler(?=\.)/, "");
+  return url.toString();
+}

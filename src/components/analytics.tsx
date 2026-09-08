@@ -107,10 +107,7 @@ export function Analytics() {
                         {stats.streak} {stats.weekly ? "week" : "day"} streak
                       </span>
                     </div>
-                    <Progress
-                      value={stats.rate}
-                      label={`${stats.periods} recent ${stats.weekly ? "weeks" : "days"} meeting target`}
-                    />
+                    <Progress value={stats.rate} label="Recent target completion" />
                   </div>
                 );
               })}

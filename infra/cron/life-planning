@@ -1,0 +1,5 @@
+# Install as /etc/cron.d/life-planning on the Asia/Dhaka production VPS.
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+*/5 * * * * root /usr/bin/flock -n /opt/life-planning/state/health.lock /usr/bin/python3 /opt/life-planning/tools/operations.py smoke --url https://myplan.oxytumzone.com > /opt/life-planning/state/health.jsonl 2>&1
+30 2 * * * root /usr/bin/flock -n /opt/life-planning/state/backup.lock /usr/bin/python3 /opt/life-planning/tools/operations.py backup --env-file /opt/life-planning/shared/app.env --output /opt/life-planning/backups/database --docker >> /opt/life-planning/state/backup.log 2>&1

@@ -8,7 +8,7 @@
 - React escapes text. User links accept HTTP/HTTPS only. The application does not fetch user-provided URLs, execute commands from user fields, or accept uploaded files.
 - Production responses include CSP, frame denial, MIME sniffing protection, referrer policy, and permissions policy. Inline scripts/styles remain allowed for Next hydration and dynamic progress styling; arbitrary eval is enabled only during development.
 - PostgreSQL connections verify TLS certificates and hostnames. Production URLs/secrets are held in a restricted bind-mounted file, excluded from image layers, source, and Terraform state. Bootstrap credentials are not deployed in the runtime environment.
-- Runtime containers use UID/GID1001, a read-only root, bounded writable temporary paths, dropped capabilities, no-new-privileges, process/memory/CPU limits, and bounded JSON logs.
+- Runtime containers use UID/GID1001, a read-only root, bounded writable temporary paths, dropped capabilities, no-new-privileges, memory/CPU limits, and bounded JSON logs.
 - Error logs contain sanitized event/type information, not SQL values, request bodies, passwords, or stack traces sent to clients.
 
 ## Maintenance
