@@ -10,6 +10,8 @@ The script uses PostgreSQL17 clients, TLS hostname verification, a custom-format
 
 The production cron job runs this backup daily at 02:30 Asia/Dhaka. A restore drill recovered the first 27,068-byte archive into the separate `life_planning_restore` database: all 11 application/migration tables, the one owner account requiring a password change, and zero sample entries were verified. The original dump manifest is preserved unchanged; this document records that drill's separate verification. The restore database is private and is not used by the application.
 
+After final verification and the owner's password change, a fresh direct-connection backup completed at `20260908T152550Z`: 27,607 bytes, with an archive check and SHA256 manifest. It contains the current owner account after test-account cleanup. The restore drill above describes the earlier recovery exercise; the fresh archive has not been restored over either database.
+
 For a restore drill, provision a separate empty database and a private target environment file. Use `operations.py restore --archive DUMP --source-env SOURCE_ENV --target-env TARGET_ENV --confirm-empty-target --docker`. It rejects the source database, nonempty targets, and checksum mismatches. Restoration is one transaction, with no `DROP`, `--clean`, or data reset. Validate records and login before considering a recovered database usable.
 
 ## Application rollback
