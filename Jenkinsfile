@@ -61,8 +61,8 @@ pipeline {
       steps {
         dir('source') {
         withCredentials([file(credentialsId: 'life-planning-ci-env', variable: 'CI_ENV')]) {
-          bat '@node --env-file="%CI_ENV%" --run db:migrate'
-          bat '@set "RUN_DB_TESTS=true" && node --env-file="%CI_ENV%" --run test:integration'
+          bat '@node --env-file="%CI_ENV%" node_modules/prisma/build/index.js migrate deploy'
+          bat '@set "RUN_DB_TESTS=true" && node --env-file="%CI_ENV%" node_modules/vitest/vitest.mjs run tests/integration'
         }
         }
       }
