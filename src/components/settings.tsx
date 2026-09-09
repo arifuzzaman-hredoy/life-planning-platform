@@ -5,6 +5,8 @@ import { useWorkspace } from "./workspace";
 import { PageHeading } from "./entry-collection";
 import { Button, ErrorMessage, Field, Section } from "./ui";
 import { today } from "@/lib/client";
+import { AiSettingsPanel } from "./ai-chat";
+import Link from "next/link";
 export function Settings() {
   const { data, mutate, notify } = useWorkspace();
   const [name, setName] = useState(data.user.name);
@@ -90,6 +92,39 @@ export function Settings() {
       )}
       <div className="settings-grid">
         <div>
+          <Section title="Appearance & language">
+            <div className="settings-form">
+              <Field label="Theme">
+                <select
+                  value={data.preferences?.theme ?? "light"}
+                  onChange={(event) =>
+                    void mutate("/api/preferences", "PUT", {
+                      language: data.preferences?.language ?? "en",
+                      theme: event.target.value,
+                    }).catch((err) => notify(err.message))
+                  }
+                >
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </Field>
+              <Field label="Language">
+                <select
+                  value={data.preferences?.language ?? "en"}
+                  onChange={(event) =>
+                    void mutate("/api/preferences", "PUT", {
+                      theme: data.preferences?.theme ?? "light",
+                      language: event.target.value,
+                    }).catch((err) => notify(err.message))
+                  }
+                >
+                  <option value="en">English</option>
+                  <option value="bn">বাংলা</option>
+                </select>
+              </Field>
+            </div>
+          </Section>
+          <AiSettingsPanel />
           <Section title="Profile & preferences">
             <form onSubmit={profile} className="settings-form">
               <Field label="Your name">
@@ -161,6 +196,9 @@ export function Settings() {
               This is a personal data export. Restoring a server backup is handled separately by the
               workspace administrator.
             </p>
+            <Link className="text-link" href="/backup">
+              Open Backup & Restore
+            </Link>
           </Section>
         </div>
         <Section title="Change password">

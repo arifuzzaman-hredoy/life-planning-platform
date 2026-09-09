@@ -14,6 +14,7 @@ import {
 import type { Entry, EntryKind } from "@/lib/contracts";
 import { dateLabel, today, words } from "@/lib/client";
 import { kindLabel } from "@/lib/modules";
+import { translateLabel } from "@/lib/roadmaps";
 import { useWorkspace } from "./workspace";
 import { Button, Empty, ErrorMessage, Field, Modal, Progress } from "./ui";
 
@@ -28,11 +29,12 @@ export function PageHeading({
   description: string;
   action?: React.ReactNode;
 }) {
+  const { data } = useWorkspace();
   return (
     <div className="page-heading">
       <div>
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>{title}</h1>
+        <h1>{translateLabel(title, data.preferences?.language)}</h1>
         <p>{description}</p>
       </div>
       {action}

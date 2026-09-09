@@ -10,6 +10,7 @@ import {
 } from "@/lib/contracts";
 import { kindLabel } from "@/lib/modules";
 import { today, words } from "@/lib/client";
+import { progressStages } from "@/lib/roadmaps";
 import { useWorkspace } from "./workspace";
 import { Button, ErrorMessage, Field, Modal } from "./ui";
 
@@ -360,6 +361,134 @@ export function EntryEditor({
                 />
               </Field>
             </>
+          )}
+          {["project", "learning"].includes(form.kind) && (
+            <>
+              <Field label="Detailed progress stage">
+                <select
+                  value={form.details.progressStage ?? ""}
+                  onChange={(event) => detail("progressStage", event.target.value)}
+                >
+                  <option value="">Use status above</option>
+                  {progressStages.map((stage) => (
+                    <option key={stage}>{stage}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Target year">
+                <input
+                  maxLength={200}
+                  value={form.details.targetYear ?? ""}
+                  onChange={(event) => detail("targetYear", event.target.value)}
+                  placeholder="For example, 2028 or Optional"
+                />
+              </Field>
+            </>
+          )}
+          {form.kind === "learning" && (
+            <details className="full">
+              <summary>Certificate & personal skill details</summary>
+              <div className="form-grid">
+                {(
+                  [
+                    ["provider", "Provider"],
+                    ["cost", "Cost"],
+                    ["validity", "Validity"],
+                    ["proofType", "Proof type"],
+                    ["currentLevel", "Current level"],
+                    ["habitTarget", "Habit target"],
+                    ["nextAction", "Next action"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Field key={key} label={label}>
+                    <input
+                      maxLength={200}
+                      value={form.details[key] ?? ""}
+                      onChange={(event) => detail(key, event.target.value)}
+                    />
+                  </Field>
+                ))}
+              </div>
+            </details>
+          )}
+          {form.kind === "project" && (
+            <details className="full">
+              <summary>Project case study</summary>
+              <div className="form-grid">
+                <Field label="Tech stack">
+                  <input
+                    maxLength={200}
+                    value={form.details.stack ?? ""}
+                    onChange={(event) => detail("stack", event.target.value)}
+                  />
+                </Field>
+                <Field label="Demo URL">
+                  <input
+                    type="url"
+                    value={form.details.demoUrl ?? ""}
+                    onChange={(event) => detail("demoUrl", event.target.value)}
+                  />
+                </Field>
+                <Field label="Difficulty">
+                  <input
+                    maxLength={200}
+                    value={form.details.difficulty ?? ""}
+                    onChange={(event) => detail("difficulty", event.target.value)}
+                  />
+                </Field>
+                {(
+                  [
+                    ["problem", "Problem"],
+                    ["solution", "Solution"],
+                    ["impact", "Impact / result"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Field key={key} label={label} wide>
+                    <textarea
+                      maxLength={20000}
+                      value={form.details[key] ?? ""}
+                      onChange={(event) => detail(key, event.target.value)}
+                    />
+                  </Field>
+                ))}
+              </div>
+            </details>
+          )}
+          {form.kind === "journal" && (
+            <details className="full">
+              <summary>Monthly review details</summary>
+              <div className="form-grid">
+                <Field label="Review score / 10">
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={form.details.reviewScore ?? ""}
+                    onChange={(event) =>
+                      detail(
+                        "reviewScore",
+                        event.target.value ? Number(event.target.value) : undefined,
+                      )
+                    }
+                  />
+                </Field>
+                {(
+                  [
+                    ["improved", "Skills improved"],
+                    ["ignored", "Fields ignored"],
+                    ["removeNext", "Remove next month"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Field key={key} label={label}>
+                    <textarea
+                      maxLength={20000}
+                      value={form.details[key] ?? ""}
+                      onChange={(event) => detail(key, event.target.value)}
+                    />
+                  </Field>
+                ))}
+              </div>
+            </details>
           )}
           {form.kind === "project" && (
             <>

@@ -14,6 +14,7 @@ import { useWorkspace } from "./workspace";
 import { addDays, dateLabel, money, today, words } from "@/lib/client";
 import { Empty, Progress, Section } from "./ui";
 import { EntryRow, PageHeading } from "./entry-collection";
+import { MotivationCard } from "./roadmaps";
 
 export function Stat({
   label,
@@ -323,6 +324,7 @@ export function Dashboard() {
               <strong>{data.entries.filter((item) => item.kind === "journal").length}</strong>
             </div>
           </Section>
+          <MotivationCard />
         </div>
       </div>
     </>

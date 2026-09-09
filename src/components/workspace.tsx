@@ -31,6 +31,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [editor, setEditor] = useState<EditorValue | null>(null);
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    document.documentElement.dataset.theme = data?.preferences?.theme ?? "light";
+    document.documentElement.lang = data?.preferences?.language ?? "en";
+  }, [data?.preferences?.theme, data?.preferences?.language]);
   const refresh = useCallback(async () => {
     try {
       const next = await api<Workspace>("/api/workspace");

@@ -9,15 +9,15 @@ datasource db {
 }
 
 model User {
-  id                 String         @id @default(cuid())
-  email              String         @unique
+  id                 String              @id @default(cuid())
+  email              String              @unique
   name               String
   passwordHash       String
-  timezone           String         @default("Asia/Dhaka")
-  currency           String         @default("BDT")
-  mustChangePassword Boolean        @default(true)
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  timezone           String              @default("Asia/Dhaka")
+  currency           String              @default("BDT")
+  mustChangePassword Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
   entries            Entry[]
   habitLogs          HabitLog[]
   studySessions      StudySession[]
@@ -26,6 +26,134 @@ model User {
   savings            SavingGoal[]
   dailyPlans         DailyPlan[]
   sessions           Session[]
+  vaultFiles         VaultFile[]
+  aiSettings         AiSettings?
+  chats              ChatThread[]
+  automationSettings AutomationSettings?
+  automationRuns     AutomationRun[]
+  notifications      Notification[]
+  preferences        UserPreferences?
+
+  @@schema("life_planning")
+}
+
+model VaultFile {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String   @default("")
+  category     String   @default("")
+  fileType     String   @default("document")
+  subjects     String[] @default([])
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  sha256       String
+  content      Bytes
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, category, createdAt])
+  @@schema("life_planning")
+}
+
+model AiSettings {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyCipher String   @default("")
+  model     String   @default("deepseek-v4-flash")
+  updatedAt DateTime @updatedAt
+
+  @@schema("life_planning")
+}
+
+model ChatThread {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String        @default("New chat")
+  busyToken String?
+  busyUntil DateTime?
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId, updatedAt])
+  @@schema("life_planning")
+}
+
+model ChatMessage {
+  id        String       @id @default(cuid())
+  threadId  String
+  thread    ChatThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  actions   ChatAction[]
+  createdAt DateTime     @default(now())
+
+  @@index([threadId, createdAt])
+  @@schema("life_planning")
+}
+
+model ChatAction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  type      String
+  payload   Json
+  appliedAt DateTime?
+  resultId  String?
+
+  @@index([messageId])
+  @@schema("life_planning")
+}
+
+model AutomationSettings {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings  Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@schema("life_planning")
+}
+
+model AutomationRun {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  slot      String
+  status    String
+  summary   String
+  details   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId, slot])
+  @@index([userId, createdAt])
+  @@schema("life_planning")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  jobId     String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@schema("life_planning")
+}
+
+model UserPreferences {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  language  String   @default("en")
+  theme     String   @default("light")
+  updatedAt DateTime @updatedAt
 
   @@schema("life_planning")
 }

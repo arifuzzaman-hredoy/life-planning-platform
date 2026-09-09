@@ -62,12 +62,12 @@ export async function revokeSession() {
   });
 }
 
-export function assertOrigin(request: Request) {
+export function assertOrigin(request: Request, bodyType = "application/json") {
   if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return;
   const origin = request.headers.get("origin");
   const expected = new URL(process.env.APP_URL || "http://localhost:3000").origin;
   if (!origin || origin !== expected) throw new ApiError(403, "Request origin is not allowed");
   const contentType = request.headers.get("content-type") ?? "";
-  if (contentType.split(";")[0].trim().toLowerCase() !== "application/json")
-    throw new ApiError(415, "Send application/json content");
+  if (contentType.split(";")[0].trim().toLowerCase() !== bodyType)
+    throw new ApiError(415, `Send ${bodyType} content`);
 }

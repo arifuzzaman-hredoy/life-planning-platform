@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./features.css";
 
 export const metadata: Metadata = {
   title: { default: "Life Planning — Your personal workspace", template: "%s · Life Planning" },

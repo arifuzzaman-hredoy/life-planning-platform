@@ -8,6 +8,20 @@ import { serializeRecord, publicUser } from "@/lib/serialize";
 
 beforeEach(() => vi.stubEnv("APP_URL", "https://planner.example.com"));
 describe("HTTP boundary", () => {
+  it("allows multipart only for opted-in uploads with the exact application origin", () => {
+    const upload = (origin: string) =>
+      new Request("https://planner.example.com/api/files", {
+        method: "POST",
+        headers: { origin, "content-type": "multipart/form-data; boundary=fixture" },
+      });
+    expect(() =>
+      assertOrigin(upload("https://planner.example.com"), "multipart/form-data"),
+    ).not.toThrow();
+    expect(() => assertOrigin(upload("https://attacker.example"), "multipart/form-data")).toThrow(
+      "origin",
+    );
+    expect(() => assertOrigin(upload("https://planner.example.com"))).toThrow("application/json");
+  });
   it("rejects absent/foreign origins and disguised JSON content types", () => {
     const request = (headers: Record<string, string>) =>
       new Request("https://planner.example.com/api/entries", { method: "POST", headers });

@@ -31,8 +31,12 @@ export function failure(error: unknown) {
   );
   return errorResponse("The request could not be completed. Please try again.", 500);
 }
-export async function readJson<T>(request: Request, schema: ZodType<T>): Promise<T> {
-  if (Number(request.headers.get("content-length") ?? 0) > 131072)
+export async function readJson<T>(
+  request: Request,
+  schema: ZodType<T>,
+  maximumBytes = 131072,
+): Promise<T> {
+  if (Number(request.headers.get("content-length") ?? 0) > maximumBytes)
     throw new ApiError(413, "Request is too large");
   const reader = request.body?.getReader();
   if (!reader) throw new ApiError(400, "Invalid JSON request");
@@ -42,7 +46,7 @@ export async function readJson<T>(request: Request, schema: ZodType<T>): Promise
     const { done, value } = await reader.read();
     if (done) break;
     bytes += value.byteLength;
-    if (bytes > 131072) {
+    if (bytes > maximumBytes) {
       await reader.cancel();
       throw new ApiError(413, "Request is too large");
     }
@@ -60,10 +64,11 @@ export async function readJson<T>(request: Request, schema: ZodType<T>): Promise
 export function authenticated(
   handler: (request: Request, user: User, context: RouteContext) => Promise<Response>,
   allowPasswordChange = false,
+  bodyType: "application/json" | "multipart/form-data" = "application/json",
 ) {
   return async (request: Request, context: RouteContext) => {
     try {
-      assertOrigin(request);
+      assertOrigin(request, bodyType);
       const user = await requireUser();
       if (user.mustChangePassword && request.method !== "GET" && !allowPasswordChange)
         throw new ApiError(403, "Change your initial password before editing your workspace");

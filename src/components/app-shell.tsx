@@ -17,6 +17,8 @@ import { modules } from "@/lib/modules";
 import { api, dateLabel, today, words } from "@/lib/client";
 import { useWorkspace } from "./workspace";
 import { Button, Modal } from "./ui";
+import { FloatingAssistant } from "./ai-chat";
+import { roadmaps, translateLabel } from "@/lib/roadmaps";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { data, edit, notify, syncError, refresh } = useWorkspace();
@@ -26,7 +28,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
-  const current = modules.find((module) => pathname === `/${module.slug}`) ?? modules[0];
+  const current = modules.find((module) => pathname === `/${module.slug}`) ?? {
+    label: roadmaps.find((item) => pathname === `/${item.slug}`)?.title ?? "My workspace",
+  };
   const date = today(data.user.timezone);
   useEffect(() => {
     if (data.user.mustChangePassword && pathname !== "/settings") router.replace("/settings");
@@ -110,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     aria-current={pathname === `/${slug}` ? "page" : undefined}
                   >
                     <Icon size={18} strokeWidth={1.8} />
-                    <span>{label}</span>
+                    <span>{translateLabel(label, data.preferences?.language)}</span>
                     {slug === "tasks" &&
                       data.entries.some(
                         (item) =>
@@ -218,6 +222,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>Your plans, one step at a time.</span>
         </footer>
       </div>
+      {pathname !== "/ai-assistant" && <FloatingAssistant />}
       {searchOpen && (
         <Modal title="Search your workspace" close={() => setSearchOpen(false)}>
           <div className="modal-body">

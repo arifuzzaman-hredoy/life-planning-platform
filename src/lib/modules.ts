@@ -13,10 +13,24 @@ import {
   NotebookPen,
   ChartNoAxesCombined,
   Settings,
+  Bot,
+  Archive,
+  Workflow,
+  Map,
+  ListChecks,
+  ClipboardCheck,
+  DatabaseBackup,
 } from "lucide-react";
 import type { EntryKind } from "./contracts";
 
 export const modules = [
+  {
+    slug: "ai-assistant",
+    label: "AI Assistant",
+    icon: Bot,
+    group: "Your day",
+    description: "A thinking partner for your plans.",
+  },
   {
     slug: "dashboard",
     label: "Overview",
@@ -123,6 +137,48 @@ export const modules = [
     icon: Settings,
     group: "Workspace",
     description: "Make this workspace yours.",
+  },
+  {
+    slug: "roadmaps",
+    label: "My Roadmaps",
+    icon: Map,
+    group: "Grow & build",
+    description: "Your connected life roadmap.",
+  },
+  {
+    slug: "progress",
+    label: "Progress Center",
+    icon: ListChecks,
+    group: "Grow & build",
+    description: "Learning and project progress.",
+  },
+  {
+    slug: "document-vault",
+    label: "Document Vault",
+    icon: Archive,
+    group: "Life & reflection",
+    description: "Your files and evidence.",
+  },
+  {
+    slug: "monthly-review",
+    label: "Monthly Review",
+    icon: ClipboardCheck,
+    group: "Life & reflection",
+    description: "Review and prepare your next steps.",
+  },
+  {
+    slug: "automation",
+    label: "Automation Hub",
+    icon: Workflow,
+    group: "Workspace",
+    description: "Routines, schedules and notifications.",
+  },
+  {
+    slug: "backup",
+    label: "Backup & Restore",
+    icon: DatabaseBackup,
+    group: "Workspace",
+    description: "Keep a copy of your plans.",
   },
 ] satisfies {
   slug: string;

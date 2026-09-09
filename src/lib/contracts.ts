@@ -32,6 +32,25 @@ export type EntryDetails = {
   challenges?: string;
   lessons?: string;
   nextSteps?: string;
+  progressStage?: string;
+  stack?: string;
+  demoUrl?: string;
+  problem?: string;
+  solution?: string;
+  impact?: string;
+  provider?: string;
+  cost?: string;
+  validity?: string;
+  targetYear?: string;
+  proofType?: string;
+  difficulty?: string;
+  currentLevel?: string;
+  nextAction?: string;
+  habitTarget?: string;
+  reviewScore?: number;
+  improved?: string;
+  ignored?: string;
+  removeNext?: string;
 };
 export interface Entry {
   id: string;
@@ -111,6 +130,7 @@ export interface PublicUser {
   mustChangePassword: boolean;
 }
 export interface Workspace {
+  preferences?: { language: string; theme: string };
   user: PublicUser;
   entries: Entry[];
   habitLogs: HabitLog[];
