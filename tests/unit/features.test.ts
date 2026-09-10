@@ -1,5 +1,9 @@
-import "dotenv/config";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../../src/lib/db", () => ({ db: {} }));
+beforeEach(() =>
+  vi.stubEnv("AI_ENCRYPTION_KEY", "isolated-unit-encryption-fixture-at-least-48-characters"),
+);
+afterEach(() => vi.unstubAllEnvs());
 import { encryptSecret, decryptSecret } from "../../src/lib/secrets";
 import { detectedMime } from "../../src/lib/vault";
 import { chatRequestSchema, automationSettingsSchema } from "../../src/lib/feature-validation";
