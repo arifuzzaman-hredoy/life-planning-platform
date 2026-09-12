@@ -224,5 +224,9 @@ test("Original feature routes and floating assistant work at desktop and mobile 
     await page.getByRole("button", { name: "Close AI assistant" }).click();
   }
   expect(errors).toEqual([]);
-  expect((await page.request.get("/exam-mode")).status()).toBe(404);
+  // App Router notFound() can return HTTP 200 once a streamed response has started.
+  // Verify the semantic 404 result instead of relying on the transport status code.
+  await page.goto("/exam-mode");
+  await expect(page.getByText("404 · Page not found", { exact: true })).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 });
