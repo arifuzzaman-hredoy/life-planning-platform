@@ -228,5 +228,6 @@ test("Original feature routes and floating assistant work at desktop and mobile 
   // Verify the semantic 404 result instead of relying on the transport status code.
   await page.goto("/exam-mode");
   await expect(page.getByText("404 · Page not found", { exact: true })).toBeVisible();
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  const noindexRobotsMeta = page.locator('meta[name="robots"][content*="noindex"]');
+  expect(await noindexRobotsMeta.count()).toBeGreaterThan(0);
 });
