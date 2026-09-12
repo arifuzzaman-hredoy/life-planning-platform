@@ -57,5 +57,5 @@ jobs:
           docker compose --env-file infra/observability/observability.env.example -f infra/observability/compose.yaml config --quiet
           python3 -m json.tool infra/observability/grafana/dashboards/life-planning-overview.json >/dev/null
           printf 'ci-only-metrics-token-not-used-in-production-123456789\n' > /tmp/life-planning-metrics.token
-          docker run --rm -v "$PWD/infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" -v /tmp/life-planning-metrics.token:/run/secrets/metrics.token:ro prom/prometheus:v3.13.3 promtool check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" -v /tmp/life-planning-metrics.token:/run/secrets/metrics.token:ro prom/prometheus:v3.13.3 check config /etc/prometheus/prometheus.yml
       - run: docker build --target runner --tag life-planning:ci .
