@@ -1,0 +1,105 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "percentChangeColorMode": "standard", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "expr": "up{job=\"life-planning\"}", "refId": "A" }],
+      "title": "Prometheus target up",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "percentChangeColorMode": "standard", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "expr": "life_planning_database_ready", "refId": "A" }],
+      "title": "Database ready",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 2, "mappings": [], "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "percentChangeColorMode": "standard", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "expr": "sum(rate(life_planning_http_requests_total[5m]))", "refId": "A" }],
+      "title": "Authenticated API request rate",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 2, "mappings": [], "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "percentChangeColorMode": "standard", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "expr": "sum(rate(life_planning_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(life_planning_http_requests_total[5m])), 0.000001)", "refId": "A" }],
+      "title": "5xx error ratio",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "group": "A", "mode": "none" } }, "mappings": [], "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "id": 5,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [{ "expr": "sum(rate(life_planning_http_request_duration_seconds_sum[5m])) / clamp_min(sum(rate(life_planning_http_request_duration_seconds_count[5m])), 0.000001)", "legendFormat": "average", "refId": "A" }],
+      "title": "Authenticated API average latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "group": "A", "mode": "none" } }, "mappings": [], "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "id": 6,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        { "expr": "life_planning_process_resident_memory_bytes", "legendFormat": "RSS", "refId": "A" },
+        { "expr": "life_planning_process_heap_used_bytes", "legendFormat": "Heap used", "refId": "B" }
+      ],
+      "title": "Application memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "group": "A", "mode": "none" } }, "mappings": [], "unit": "cores" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "id": 7,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        { "expr": "rate(life_planning_process_cpu_user_seconds_total[5m])", "legendFormat": "User CPU", "refId": "A" },
+        { "expr": "rate(life_planning_process_cpu_system_seconds_total[5m])", "legendFormat": "System CPU", "refId": "B" }
+      ],
+      "title": "Application CPU",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "life-planning-prometheus" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "group": "A", "mode": "none" } }, "mappings": [], "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "id": 8,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [{ "expr": "life_planning_database_check_duration_seconds", "legendFormat": "DB readiness query", "refId": "A" }],
+      "title": "Database readiness latency",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 41,
+  "tags": ["life-planning", "production", "prometheus"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Life Planning — Production Overview",
+  "uid": "life-planning-overview",
+  "version": 1
+}

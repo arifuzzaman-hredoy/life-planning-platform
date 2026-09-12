@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { assertOrigin, requireUser } from "./auth";
 import { ApiError } from "./errors";
+import { observeHttpRequest } from "./metrics";
 type User = Awaited<ReturnType<typeof requireUser>>;
 export type RouteContext = { params: Promise<Record<string, string>> };
 export function success(data: unknown, status = 200) {
@@ -67,14 +68,18 @@ export function authenticated(
   bodyType: "application/json" | "multipart/form-data" = "application/json",
 ) {
   return async (request: Request, context: RouteContext) => {
+    const started = performance.now();
+    let response: Response;
     try {
       assertOrigin(request, bodyType);
       const user = await requireUser();
       if (user.mustChangePassword && request.method !== "GET" && !allowPasswordChange)
         throw new ApiError(403, "Change your initial password before editing your workspace");
-      return await handler(request, user, context);
+      response = await handler(request, user, context);
     } catch (error) {
-      return failure(error);
+      response = failure(error);
     }
+    observeHttpRequest(request, response.status, (performance.now() - started) / 1000);
+    return response;
   };
 }

@@ -24,7 +24,7 @@ resource "docker_container" "app" {
     drop = ["ALL"]
   }
   command = ["node", "--env-file=/run/secrets/app.env", "server.js"]
-  env     = ["NODE_ENV=production", "HOSTNAME=0.0.0.0", "PORT=3000", "NEXT_TELEMETRY_DISABLED=1"]
+  env     = ["NODE_ENV=production", "HOSTNAME=0.0.0.0", "PORT=3000", "NEXT_TELEMETRY_DISABLED=1", "APP_RELEASE=${var.image}"]
   tmpfs   = { "/tmp" = "rw,noexec,nosuid,size=64m", "/app/.next/cache" = "rw,nosuid,size=64m,uid=1001,gid=1001" }
   ports {
     internal = 3000

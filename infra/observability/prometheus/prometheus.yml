@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: life-planning
+    environment: production
+
+scrape_configs:
+  - job_name: life-planning
+    metrics_path: /api/metrics
+    scheme: http
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/metrics.token
+    static_configs:
+      - targets:
+          - life-planning-app:3000
+        labels:
+          app: life-planning
