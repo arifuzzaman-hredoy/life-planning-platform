@@ -25,6 +25,12 @@ import time
 APPROVED_HOST = "198.54.121.88"
 
 
+def decode_channel_output(raw_output: object) -> str:
+    if isinstance(raw_output, bytes):
+        return raw_output.decode("utf-8", errors="replace")
+    return str(raw_output)
+
+
 def load_credentials(path: Path) -> dict[str, str]:
     credentials = json.loads(path.read_text(encoding="utf-8-sig"))
     required = {"host", "username", "password"}
@@ -91,13 +97,17 @@ def run_remote_once(
         channel.set_combine_stderr(True)
         channel.exec_command("sh -c " + shlex.quote(command))
 
-        lines: list[str] = []
         with channel.makefile("r") as output:
-            for line in output:
-                text = line.rstrip()
-                lines.append(text)
-                if stream:
-                    print(text, flush=True)
+            decoded_output = decode_channel_output(output.read())
+
+        lines = decoded_output.splitlines()
+
+        if stream and decoded_output:
+            print(
+                decoded_output,
+                end="" if decoded_output.endswith("\n") else "\n",
+                flush=True,
+            )
 
         code = channel.recv_exit_status()
         if code:
@@ -106,7 +116,8 @@ def run_remote_once(
                 f"Remote command failed with exit code {code}"
                 + (f"\n{tail}" if tail else "")
             )
-        return "\n".join(lines)
+
+        return decoded_output
     finally:
         client.close()
 
