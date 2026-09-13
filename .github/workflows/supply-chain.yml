@@ -122,7 +122,7 @@ jobs:
           mkdir -p artifacts/security
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            anchore/syft:v1.51.1 \
+            ghcr.io/anchore/syft:v1.51.1 \
             "$IMAGE:sha-$REQUESTED_SHA" \
             -o cyclonedx-json > artifacts/security/sbom.cdx.json
           python3 -m json.tool artifacts/security/sbom.cdx.json >/dev/null
