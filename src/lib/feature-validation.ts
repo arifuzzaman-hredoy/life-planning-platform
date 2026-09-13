@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_ATTACHMENT_TEXT_CHARS } from "./chat-attachments";
 export const featureText = z.string().trim().max(20000);
 const short = z.string().trim().max(200);
 export const vaultMetadataSchema = z
@@ -46,7 +47,7 @@ export const chatRequestSchema = z
         z
           .object({
             name: short,
-            text: z.string().max(9000),
+            text: z.string().max(MAX_ATTACHMENT_TEXT_CHARS),
             sizeBytes: z.number().int().min(0).max(26214400),
           })
           .strict(),

@@ -235,6 +235,21 @@ describe.runIf(process.env.RUN_DB_TESTS === "true")("reference feature persisten
     expect(Object.values(same.added ?? {}).every((count) => count === 0)).toBe(true);
     expect(await db.studySession.count({ where: { userId: restoreOwner } })).toBe(1);
     expect(await db.transaction.count({ where: { userId: restoreOwner } })).toBe(1);
+  }, 60000);
+  it("rejects over-limit chat restores before creating any records", async () => {
+    await db.chatThread.createMany({
+      data: Array.from({ length: 100 }, () => ({ userId: other })),
+    });
+    const raw = await exportWorkspace(owner);
+    raw.entries.push({ id: randomUUID(), kind: "note", title: "Must not partially restore" });
+    const payload = backupSchema.parse(raw);
+    const before = await db.entry.count({ where: { userId: other } });
+    await expect(restoreWorkspace(other, payload)).rejects.toThrow("exceed 100 chats");
+    await expect(restoreWorkspace(other, payload, false)).rejects.toThrow("exceed 100 chats");
+    expect(await db.entry.count({ where: { userId: other } })).toBe(before);
+    expect(await db.chatThread.count({ where: { userId: other } })).toBe(100);
+    const duplicate = backupSchema.parse({ ...raw, chats: [raw.chats[0], raw.chats[0]] });
+    await expect(restoreWorkspace(other, duplicate, false)).rejects.toThrow("Duplicate chat IDs");
   });
   it("deduplicates a scheduled slot and generates current plans without the ended exam", async () => {
     const first = await runAutomation(owner, "ai_daily_planner", "fixture-slot");

@@ -76,24 +76,27 @@ export async function exportWorkspace(userId: string) {
     savings,
     dailyPlans,
     chats,
-  ] = await db.$transaction([
-    db.user.findUniqueOrThrow({ where: { id: userId } }),
-    db.entry.findMany({ where }),
-    db.habitLog.findMany({ where }),
-    db.studySession.findMany({ where }),
-    db.transaction.findMany({ where }),
-    db.budget.findMany({ where }),
-    db.savingGoal.findMany({ where }),
-    db.dailyPlan.findMany({ where }),
-    db.chatThread.findMany({
-      where,
-      select: {
-        id: true,
-        title: true,
-        messages: { orderBy: { createdAt: "asc" }, select: { role: true, content: true } },
-      },
-    }),
-  ]);
+  ] = await db.$transaction(
+    [
+      db.user.findUniqueOrThrow({ where: { id: userId } }),
+      db.entry.findMany({ where }),
+      db.habitLog.findMany({ where }),
+      db.studySession.findMany({ where }),
+      db.transaction.findMany({ where }),
+      db.budget.findMany({ where }),
+      db.savingGoal.findMany({ where }),
+      db.dailyPlan.findMany({ where }),
+      db.chatThread.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          messages: { orderBy: { createdAt: "asc" }, select: { role: true, content: true } },
+        },
+      }),
+    ],
+    { isolationLevel: "RepeatableRead" },
+  );
   return {
     formatVersion: 2,
     exportedAt: new Date().toISOString(),
@@ -129,6 +132,22 @@ export async function restoreWorkspace(
         createHash("sha256")
           .update(JSON.stringify([userId, input.user.id, sourceId]))
           .digest("hex");
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"chat-threads:" + userId}))`;
+      if (new Set(input.chats.map((chat) => chat.id)).size !== input.chats.length)
+        throw new ApiError(400, "Duplicate chat IDs in backup");
+      const existingChats = await tx.chatThread.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+      const oldChatIds = new Set(existingChats.map((chat) => chat.id));
+      const missingChats = input.chats.filter(
+        (chat) => !oldChatIds.has(chat.id) && !oldChatIds.has(remap(chat.id)),
+      );
+      if (existingChats.length + missingChats.length > 100)
+        throw new ApiError(
+          409,
+          "Restoring this backup would exceed 100 chats. Export and remove unneeded conversations first.",
+        );
       const entryIds = new Map(
         ids.map((sourceId) => [sourceId, own.has(sourceId) ? sourceId : remap(sourceId)]),
       );
@@ -176,7 +195,7 @@ export async function restoreWorkspace(
         budgets: input.budgets.length,
         savings: input.savings.length,
         dailyPlans: input.dailyPlans.length,
-        chats: input.chats.length,
+        chats: missingChats.length,
       };
       if (dryRun)
         return {
@@ -270,12 +289,7 @@ export async function restoreWorkspace(
         })
       ).count;
       let chatsAdded = 0;
-      for (const chat of input.chats) {
-        const existingChat = await tx.chatThread.findFirst({
-          where: { userId, id: { in: [chat.id, remap(chat.id)] } },
-          select: { id: true },
-        });
-        if (existingChat) continue;
+      for (const chat of missingChats) {
         await tx.chatThread.create({
           data: {
             id: remap(chat.id),

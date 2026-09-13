@@ -14,13 +14,14 @@ export const GET = authenticated(async (_request, user) =>
 );
 export const POST = authenticated(async (request, user) => {
   await readJson(request, z.object({}).strict());
-  if ((await db.chatThread.count({ where: { userId: user.id } })) >= 100)
-    throw new ApiError(409, "You have 100 chats. Delete an old chat to start another.");
-  return success(
-    await db.chatThread.create({
+  const thread = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"chat-threads:" + user.id}))`;
+    if ((await tx.chatThread.count({ where: { userId: user.id } })) >= 100)
+      throw new ApiError(409, "You have 100 chats. Delete an old chat to start another.");
+    return tx.chatThread.create({
       data: { userId: user.id },
       select: { id: true, title: true, updatedAt: true, createdAt: true },
-    }),
-    201,
-  );
+    });
+  });
+  return success(thread, 201);
 });

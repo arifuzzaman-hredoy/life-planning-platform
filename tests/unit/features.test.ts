@@ -9,8 +9,24 @@ import { detectedMime } from "../../src/lib/vault";
 import { chatRequestSchema, automationSettingsSchema } from "../../src/lib/feature-validation";
 import { dueAutomationJobs } from "../../src/lib/automation";
 import { parseAiReply } from "../../src/lib/ai";
+import { attachmentTextPreview } from "../../src/lib/chat-attachments";
 
 describe("feature security boundaries", () => {
+  it("prepares large ASCII and Bangla attachments that the send endpoint accepts", async () => {
+    for (const source of ["a".repeat(20000), "বাংলা পরিকল্পনা ".repeat(2000)]) {
+      const file = new File([source], "plan.txt", { type: "text/plain" });
+      const text = await attachmentTextPreview(file);
+      expect(text.length).toBeGreaterThan(0);
+      expect(source.startsWith(text)).toBe(true);
+      const parsed = chatRequestSchema.safeParse({
+        threadId: "fixture",
+        message: "Summarize this",
+        contextMode: "selected_files",
+        attachments: [{ name: file.name, text, sizeBytes: file.size }],
+      });
+      expect(parsed.success).toBe(true);
+    }
+  });
   it("encrypts API keys with owner binding and rejects tampered ciphertext", () => {
     const value = encryptSecret("test-provider-key-not-a-real-secret", "owner-a");
     expect(value).not.toContain("test-provider-key");

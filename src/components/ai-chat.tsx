@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Copy, Maximize2, Paperclip, Plus, Send, Settings2, Trash2, X } from "lucide-react";
 import { api } from "@/lib/client";
+import { attachmentTextPreview } from "@/lib/chat-attachments";
 import type { AiConfig, ChatDetail, ChatThreadView, VaultData } from "@/lib/feature-contracts";
 import { Button, ErrorMessage, Field, Modal, Section } from "./ui";
 import { PageHeading } from "./entry-collection";
@@ -265,7 +266,7 @@ export function AiChat({ compact = false, onClose }: { compact?: boolean; onClos
         next.push({
           name: file.name.slice(0, 200),
           text: readable
-            ? await file.slice(0, 12000).text()
+            ? await attachmentTextPreview(file)
             : "Binary attachment: metadata only; no text extraction.",
           sizeBytes: file.size,
         });
