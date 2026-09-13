@@ -8,7 +8,7 @@ function encryptionKey() {
 }
 export function encryptSecret(value: string, ownerId: string) {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv, { authTagLength: 16 });
   cipher.setAAD(Buffer.from(ownerId));
   const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
   return [
@@ -21,9 +21,13 @@ export function encryptSecret(value: string, ownerId: string) {
 export function decryptSecret(value: string, ownerId: string) {
   const [version, iv, tag, body] = value.split(".");
   if (version !== "v1" || !iv || !tag || !body) throw new Error("Invalid encrypted value");
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(iv, "base64"));
+  const authTag = Buffer.from(tag, "base64");
+  if (authTag.length !== 16) throw new Error("Invalid encrypted value");
+  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(iv, "base64"), {
+    authTagLength: 16,
+  });
   decipher.setAAD(Buffer.from(ownerId));
-  decipher.setAuthTag(Buffer.from(tag, "base64"));
+  decipher.setAuthTag(authTag);
   return Buffer.concat([decipher.update(Buffer.from(body, "base64")), decipher.final()]).toString(
     "utf8",
   );

@@ -33,8 +33,7 @@ rules:
     message: dangerouslySetInnerHTML requires an explicit sanitizer and security review.
     severity: ERROR
     languages: [typescript]
-    pattern: "<... dangerouslySetInnerHTML={...} ... />"
-
+    pattern-regex: 'dangerouslySetInnerHTML\s*='
   - id: life-planning-no-wildcard-cors
     message: Wildcard CORS is not permitted for authenticated APIs.
     severity: ERROR

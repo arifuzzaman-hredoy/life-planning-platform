@@ -43,10 +43,17 @@ jobs:
           esac
           echo "url=$target" >> "$GITHUB_OUTPUT"
       - name: Run k6
+        env:
+          LOAD_PROFILE: ${{ inputs.profile }}
+          LOAD_BASE_URL: ${{ steps.target.outputs.url }}
         run: |
-          profile='${{ inputs.profile }}'
+          set -euo pipefail
+          case "$LOAD_PROFILE" in
+            smoke|steady) ;;
+            *) echo "Unsupported load profile." >&2; exit 2 ;;
+          esac
           docker run --rm \
-            -e BASE_URL='${{ steps.target.outputs.url }}' \
+            -e BASE_URL="$LOAD_BASE_URL" \
             -v "$PWD/tests/load:/scripts:ro" \
             grafana/k6:1.3.0 \
-            run "/scripts/${profile}.js"
+            run "/scripts/${LOAD_PROFILE}.js"

@@ -19,6 +19,7 @@ COPY prisma.config.ts tsconfig.json ./
 COPY scripts/bootstrap.ts ./scripts/bootstrap.ts
 COPY src/lib ./src/lib
 RUN DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=life_planning npm run db:generate
+USER node
 CMD ["npm", "run", "db:migrate"]
 
 FROM node:22.23.1-bookworm-slim AS runner
