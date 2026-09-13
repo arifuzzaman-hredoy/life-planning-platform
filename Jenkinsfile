@@ -70,7 +70,7 @@ pipeline {
 
             if (requested) {
 
-              bat "@git cat-file -e ${requested}^{commit}"
+              bat "@git cat-file -t ${requested} | findstr /x commit"
 
               bat """
                 @git merge-base --is-ancestor ${requested} origin/main || (
