@@ -281,18 +281,34 @@ def available_memory_kib() -> int:
     raise RuntimeError("Could not read MemAvailable")
 
 
-def verify_prometheus_query(query: str) -> None:
+def verify_prometheus_query(
+    query: str,
+    attempts: int = 20,
+    delay: float = 3.0,
+) -> None:
     from urllib.parse import urlencode
 
-    body = http_text(
-        "http://127.0.0.1:9097/api/v1/query?" + urlencode({"query": query})
+    url = "http://127.0.0.1:9097/api/v1/query?" + urlencode({"query": query})
+    last_state = "no samples"
+
+    for attempt in range(attempts):
+        try:
+            body = http_text(url)
+            document = json.loads(body)
+            result = document.get("data", {}).get("result", [])
+            if result and any(float(item["value"][1]) == 1 for item in result):
+                return
+            last_state = "no samples" if not result else "latest value was not healthy"
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            last_state = type(error).__name__
+
+        if attempt + 1 < attempts:
+            time.sleep(delay)
+
+    raise RuntimeError(
+        f"Prometheus query did not become healthy after {attempts} attempts: "
+        f"{query} ({last_state})"
     )
-    document = json.loads(body)
-    result = document.get("data", {}).get("result", [])
-    if not result:
-        raise RuntimeError(f"Prometheus query returned no data: {query}")
-    if not any(float(item["value"][1]) == 1 for item in result):
-        raise RuntimeError(f"Prometheus query is not healthy: {query}")
 
 
 def prepare(root: Path, source: Path) -> None:
