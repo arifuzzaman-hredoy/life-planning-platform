@@ -1,0 +1,18 @@
+title = "Life Planning Gitleaks policy"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known disposable examples and generated paths; real credentials stay forbidden."
+paths = [
+  '''^infra/terraform/\.terraform/'''
+]
+regexes = [
+  '''ci-disposable-database''',
+  '''ci-only-secret-not-used-in-any-live-environment''',
+  '''ci-only-grafana-password-not-used-in-production''',
+  '''ci-only-metrics-token-not-used-in-production-123456789''',
+  '''replace-with-[A-Za-z0-9-]+''',
+  '''local-development-only'''
+]

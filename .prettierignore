@@ -14,3 +14,4 @@ next-env.d.ts
 .reference
 .VSCodeCounter
 infra/observability/
+infra/helm/life-planning/templates/

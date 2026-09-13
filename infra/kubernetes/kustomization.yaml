@@ -3,8 +3,11 @@ kind: Kustomization
 namespace: life-planning
 resources:
   - namespace.yaml
+  - serviceaccount.yaml
   - configmap.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
   - networkpolicy.yaml
+  - pdb.yaml
+  - hpa.yaml

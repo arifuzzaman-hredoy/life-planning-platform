@@ -18,3 +18,5 @@ Keep the account private. Use a unique password and store it in a password manag
 Password recovery is an operator procedure; no unauthenticated reset endpoint exists. Before changing an account credential, verify the requester, write a fresh hash using the same password helper, revoke that user's sessions, and require a password change. Never edit another user's data to recover access.
 
 This repository does not claim a third-party penetration test or formal compliance certification. The automated checks and observed release results are documented in testing.md.
+
+See `docs/DEVSECOPS_SRE_ROADMAP.md` for the staged DevSecOps/SRE/Kubernetes maturity plan and activation boundaries.

@@ -1,0 +1,89 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Availability SLI",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "life-planning-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "life_planning:sli_availability:ratio_rate5m",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "5xx error ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "life-planning-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "life_planning:sli_error:ratio_rate5m",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "p95 latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "life-planning-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "life_planning:sli_latency:p95_5m",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": [
+    "life-planning",
+    "sre",
+    "slo"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Life Planning \u2014 SLO Overview",
+  "uid": "life-planning-slo",
+  "version": 1
+}

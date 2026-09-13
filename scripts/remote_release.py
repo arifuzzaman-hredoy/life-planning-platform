@@ -194,18 +194,62 @@ def main() -> None:
         )
         verify_archive(archive)
 
+        app_image = f"life-planning:{args.release}"
+        migrator_image = f"life-planning-migrator:{args.release}"
+        temporary_app_image = f"life-planning-build:{args.release}"
+        temporary_migrator_image = f"life-planning-migrator-build:{args.release}"
+        build_root = f"/opt/life-planning/releases/.building-{args.release}"
+
+        # Immutable release tags are never overwritten. Build into a temporary
+        # release root and temporary image tags, then publish atomically only
+        # after both image builds and the release manifest succeed.
+        preflight = "set -eu\n"
+        preflight += f"test ! -e {shlex.quote(release_root)}\n"
+        preflight += f"test ! -e {shlex.quote(build_root)}\n"
+        for image in (
+            app_image,
+            migrator_image,
+            temporary_app_image,
+            temporary_migrator_image,
+        ):
+            preflight += (
+                f"! docker image inspect {shlex.quote(image)} >/dev/null 2>&1\n"
+            )
+        preflight += "umask 027\n"
+        preflight += f"mkdir -p {shlex.quote(build_root)}\n"
         run_remote_once(
             credentials,
             known_hosts,
-            f"set -eu\nmkdir -p {shlex.quote(release_root)}",
+            preflight,
             timeout=30,
         )
 
-        remote_archive = release_root + "/source.tar"
-        upload_once(credentials, known_hosts, archive, remote_archive)
+        remote_archive = build_root + "/source.tar"
+        try:
+            upload_once(credentials, known_hosts, archive, remote_archive)
+        except Exception:
+            run_remote_once(
+                credentials,
+                known_hosts,
+                f"rm -rf {shlex.quote(build_root)}",
+                timeout=30,
+            )
+            raise
 
         command = "set -eu\n"
-        command += f"cd {shlex.quote(release_root)}\n"
+        command += "FINALIZED=0\n"
+        command += "cleanup_release_build() {\n"
+        command += "  docker buildx stop life-planning-builder >/dev/null 2>&1 || true\n"
+        command += "  if [ \"$FINALIZED\" -eq 0 ]; then\n"
+        command += f"    docker image rm -f {shlex.quote(temporary_app_image)} >/dev/null 2>&1 || true\n"
+        command += f"    docker image rm -f {shlex.quote(temporary_migrator_image)} >/dev/null 2>&1 || true\n"
+        command += f"    docker image rm -f {shlex.quote(app_image)} >/dev/null 2>&1 || true\n"
+        command += f"    docker image rm -f {shlex.quote(migrator_image)} >/dev/null 2>&1 || true\n"
+        command += f"    rm -rf {shlex.quote(build_root)}\n"
+        command += "  fi\n"
+        command += "}\n"
+        command += "trap cleanup_release_build EXIT INT TERM\n"
+        command += f"cd {shlex.quote(build_root)}\n"
         command += "tar --extract --file source.tar --no-same-owner\n"
         command += (
             "docker buildx inspect life-planning-builder >/dev/null 2>&1 || "
@@ -215,19 +259,31 @@ def main() -> None:
             "cpu-quota=150000,cpu-period=100000\n"
         )
         command += (
-            "trap 'docker buildx stop life-planning-builder >/dev/null 2>&1 || true' EXIT\n"
-        )
-        command += (
             "docker buildx build --builder life-planning-builder --load "
             "--target runner "
-            f"--tag life-planning:{args.release} .\n"
+            f"--tag {shlex.quote(temporary_app_image)} .\n"
         )
         command += (
             "docker buildx build --builder life-planning-builder --load "
             "--target migrator "
-            f"--tag life-planning-migrator:{args.release} .\n"
+            f"--tag {shlex.quote(temporary_migrator_image)} .\n"
         )
-        command += "docker buildx stop life-planning-builder\n"
+        command += f"docker tag {shlex.quote(temporary_app_image)} {shlex.quote(app_image)}\n"
+        command += f"docker tag {shlex.quote(temporary_migrator_image)} {shlex.quote(migrator_image)}\n"
+        command += f"docker image rm {shlex.quote(temporary_app_image)} >/dev/null\n"
+        command += f"docker image rm {shlex.quote(temporary_migrator_image)} >/dev/null\n"
+        command += (
+            "python3 scripts/release_manifest.py create "
+            f"--release {shlex.quote(args.release)} "
+            "--source-archive source.tar "
+            f"--app-image {shlex.quote(app_image)} "
+            f"--migrator-image {shlex.quote(migrator_image)} "
+            "--output release-manifest.json\n"
+        )
+        command += "chmod 0440 release-manifest.json\n"
+        command += f"cd {shlex.quote(release_root.rsplit('/', 1)[0])}\n"
+        command += f"mv {shlex.quote(build_root)} {shlex.quote(release_root)}\n"
+        command += "FINALIZED=1\n"
 
         if args.deploy:
             command += (

@@ -1,0 +1,52 @@
+name: Staging load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "HTTPS staging URL"
+        required: false
+        type: string
+      profile:
+        description: "smoke or steady"
+        required: true
+        default: smoke
+        type: choice
+        options: [smoke, steady]
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      INPUT_TARGET: ${{ inputs.target_url }}
+      DEFAULT_TARGET: ${{ vars.STAGING_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate staging-only target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${INPUT_TARGET:-${DEFAULT_TARGET:-}}"
+          test -n "$target" || { echo "Set input target_url or repository variable STAGING_URL" >&2; exit 2; }
+          case "$target" in
+            https://myplan.oxytumzone.com*|http://myplan.oxytumzone.com*)
+              echo "Production load testing is blocked by policy." >&2
+              exit 2
+              ;;
+            https://*) ;;
+            *) echo "Target must use HTTPS." >&2; exit 2 ;;
+          esac
+          echo "url=$target" >> "$GITHUB_OUTPUT"
+      - name: Run k6
+        run: |
+          profile='${{ inputs.profile }}'
+          docker run --rm \
+            -e BASE_URL='${{ steps.target.outputs.url }}' \
+            -v "$PWD/tests/load:/scripts:ro" \
+            grafana/k6:1.3.0 \
+            run "/scripts/${profile}.js"

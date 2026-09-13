@@ -1,0 +1,36 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/arifuzzaman-hredoy/life-planning-platform
+  tag: replace-with-immutable-sha
+  pullPolicy: IfNotPresent
+service:
+  port: 80
+containerPort: 3000
+config:
+  appUrl: https://myplan.oxytumzone.com
+secret:
+  name: life-planning-secrets
+  key: app.env
+ingress:
+  enabled: true
+  className: nginx
+  host: myplan.oxytumzone.com
+  tlsSecret: life-planning-tls
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 640Mi
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx

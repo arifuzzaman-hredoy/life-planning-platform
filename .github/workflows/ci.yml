@@ -46,16 +46,62 @@ jobs:
         env:
           RUN_DB_TESTS: "true"
       - run: python3 -m unittest discover -s scripts -p "test_*.py"
+      - run: python3 scripts/validate_platform.py
+      - name: Validate environment examples
+        run: |
+          python3 scripts/validate_env.py .env.example
+          python3 scripts/validate_env.py infra/staging/app.env.example
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
       - uses: hashicorp/setup-terraform@v4
       - run: terraform -chdir=infra/terraform init -backend=false -input=false
       - run: terraform -chdir=infra/terraform validate
       - run: terraform -chdir=infra/terraform fmt -check
+      - name: Validate staging Terraform
+        run: |
+          terraform -chdir=infra/staging/terraform init -backend=false -input=false
+          terraform -chdir=infra/staging/terraform validate
+          terraform -chdir=infra/staging/terraform fmt -check
+      - name: Validate Helm chart rendering
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/work" -w /work alpine/helm:3.18.4 \
+            lint infra/helm/life-planning
+          docker run --rm -v "$PWD:/work" -w /work alpine/helm:3.18.4 \
+            template life-planning infra/helm/life-planning \
+            --set image.tag=${{ github.sha }} >/tmp/life-planning-production.yaml
+          docker run --rm -v "$PWD:/work" -w /work alpine/helm:3.18.4 \
+            template life-planning-staging infra/helm/life-planning \
+            -f infra/helm/life-planning/values.yaml \
+            -f infra/helm/life-planning/values-staging.yaml \
+            --set image.tag=${{ github.sha }} >/tmp/life-planning-staging.yaml
+          test -s /tmp/life-planning-production.yaml
+          test -s /tmp/life-planning-staging.yaml
       - name: Validate observability configuration
         run: |
+          set -euo pipefail
           docker compose --env-file infra/observability/observability.env.example -f infra/observability/compose.yaml config --quiet
           python3 -m json.tool infra/observability/grafana/dashboards/life-planning-overview.json >/dev/null
           printf 'ci-only-metrics-token-not-used-in-production-123456789\n' > /tmp/life-planning-metrics.token
-          docker run --rm --entrypoint /bin/promtool -v "$PWD/infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" -v /tmp/life-planning-metrics.token:/run/secrets/metrics.token:ro prom/prometheus:v3.13.3 check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v /tmp/life-planning-metrics.token:/run/secrets/metrics.token:ro \
+            prom/prometheus:v3.13.3 check config /etc/prometheus/prometheus.yml
+      - name: Validate optional SRE stack
+        env:
+          LIFE_PLANNING_METRICS_TOKEN_FILE: /tmp/life-planning-metrics.token
+          GRAFANA_ADMIN_USER: ci-admin
+          GRAFANA_ADMIN_PASSWORD: ci-only-grafana-password-not-used-in-production
+        run: |
+          set -euo pipefail
+          docker compose -f infra/observability/sre/compose.yaml config --quiet
+          python3 -m json.tool infra/observability/sre/grafana/dashboards/slo.json >/dev/null
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/infra/observability/sre/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "$PWD/infra/observability/sre/prometheus/rules:/etc/prometheus/rules:ro" \
+            -v /tmp/life-planning-metrics.token:/run/secrets/metrics.token:ro \
+            prom/prometheus:v3.13.3 check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/infra/observability/sre/prometheus/rules:/etc/prometheus/rules:ro" \
+            prom/prometheus:v3.13.3 check rules /etc/prometheus/rules/life-planning.rules.yml
       - run: docker build --target runner --tag life-planning:ci .

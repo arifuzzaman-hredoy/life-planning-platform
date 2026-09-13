@@ -3,21 +3,20 @@ kind: Deployment
 metadata:
   name: life-planning
 spec:
-  replicas: 1
-  revisionHistoryLimit: 3
+  replicas: 2
+  revisionHistoryLimit: 5
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
   selector:
-    matchLabels:
-      app: life-planning
+    matchLabels: { app: life-planning }
   template:
     metadata:
-      labels:
-        app: life-planning
+      labels: { app: life-planning }
     spec:
+      serviceAccountName: life-planning
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:
@@ -25,67 +24,43 @@ spec:
         runAsUser: 1001
         runAsGroup: 1001
         fsGroup: 1001
-        seccompProfile:
-          type: RuntimeDefault
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: app
-          # Replace this with your published immutable image or digest before applying.
-          image: ghcr.io/arifuzzaman-hredoy/life-planning-platform:replace-with-commit-sha
+          image: ghcr.io/arifuzzaman-hredoy/life-planning-platform:replace-with-immutable-sha
           imagePullPolicy: IfNotPresent
           command: ["node", "--env-file=/run/secrets/app.env", "server.js"]
-          ports:
-            - name: http
-              containerPort: 3000
-          envFrom:
-            - configMapRef:
-                name: life-planning-config
+          ports: [{ name: http, containerPort: 3000 }]
+          envFrom: [{ configMapRef: { name: life-planning-config } }]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
+            capabilities: { drop: ["ALL"] }
           resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 640Mi
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 640Mi }
           startupProbe:
-            httpGet:
-              path: /api/health
-              port: http
+            httpGet: { path: /api/health, port: http }
             periodSeconds: 5
             failureThreshold: 30
           livenessProbe:
-            httpGet:
-              path: /api/health
-              port: http
+            httpGet: { path: /api/health, port: http }
             periodSeconds: 30
             timeoutSeconds: 5
           readinessProbe:
-            httpGet:
-              path: /api/ready
-              port: http
+            httpGet: { path: /api/ready, port: http }
             periodSeconds: 15
             timeoutSeconds: 5
           volumeMounts:
-            - name: secret
-              mountPath: /run/secrets
-              readOnly: true
-            - name: temporary
-              mountPath: /tmp
-            - name: cache
-              mountPath: /app/.next/cache
+            - { name: secret, mountPath: /run/secrets, readOnly: true }
+            - { name: temporary, mountPath: /tmp }
+            - { name: cache, mountPath: /app/.next/cache }
       volumes:
         - name: secret
           secret:
             secretName: life-planning-secrets
             defaultMode: 0440
         - name: temporary
-          emptyDir:
-            medium: Memory
-            sizeLimit: 64Mi
+          emptyDir: { medium: Memory, sizeLimit: 64Mi }
         - name: cache
-          emptyDir:
-            sizeLimit: 64Mi
+          emptyDir: { sizeLimit: 64Mi }

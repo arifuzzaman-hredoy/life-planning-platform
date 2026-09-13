@@ -1,0 +1,42 @@
+rules:
+  - id: life-planning-no-eval
+    message: Dynamic code execution is not allowed in application code.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: life-planning-no-shell-exec
+    message: Direct shell execution from application code requires a security review.
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $CP.exec(...)
+          - pattern: $CP.execSync(...)
+          - pattern: $CP.spawn(...)
+          - pattern: $CP.spawnSync(...)
+      - pattern-inside: |
+          import * as $CP from "node:child_process";
+          ...
+
+  - id: life-planning-no-tls-disable
+    message: TLS certificate verification must not be disabled.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: "{..., rejectUnauthorized: false, ...}"
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
+  - id: life-planning-no-dangerous-html
+    message: dangerouslySetInnerHTML requires an explicit sanitizer and security review.
+    severity: ERROR
+    languages: [typescript]
+    pattern: "<... dangerouslySetInnerHTML={...} ... />"
+
+  - id: life-planning-no-wildcard-cors
+    message: Wildcard CORS is not permitted for authenticated APIs.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern: '{..., "Access-Control-Allow-Origin": "*", ...}'

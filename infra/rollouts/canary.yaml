@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: life-planning
+  namespace: life-planning
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: { app: life-planning }
+  template:
+    metadata:
+      labels: { app: life-planning }
+    spec:
+      serviceAccountName: life-planning
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/arifuzzaman-hredoy/life-planning-platform:replace-with-immutable-sha
+          command: ["node", "--env-file=/run/secrets/app.env", "server.js"]
+          ports: [{ name: http, containerPort: 3000 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 640Mi }
+          readinessProbe:
+            httpGet: { path: /api/ready, port: http }
+          volumeMounts:
+            - { name: secret, mountPath: /run/secrets, readOnly: true }
+            - { name: temporary, mountPath: /tmp }
+            - { name: cache, mountPath: /app/.next/cache }
+      volumes:
+        - name: secret
+          secret:
+            secretName: life-planning-secrets
+            defaultMode: 0440
+        - name: temporary
+          emptyDir: { medium: Memory, sizeLimit: 64Mi }
+        - name: cache
+          emptyDir: { sizeLimit: 64Mi }
+  strategy:
+    canary:
+      canaryService: life-planning-canary
+      stableService: life-planning-stable
+      steps:
+        - setWeight: 10
+        - pause: { duration: 5m }
+        - setWeight: 25
+        - pause: { duration: 10m }
+        - setWeight: 50
+        - pause: { duration: 10m }
+        - setWeight: 100

@@ -57,3 +57,5 @@ Production uses an isolated Docker container on the existing VPS, Neon PostgreSQ
 - [Verification results](docs/testing.md)
 
 Live address: [myplan.oxytumzone.com](https://myplan.oxytumzone.com). Deployment verification status is recorded in the documentation after each release.
+
+See `docs/DEVSECOPS_SRE_ROADMAP.md` for the staged DevSecOps/SRE/Kubernetes maturity plan and activation boundaries.

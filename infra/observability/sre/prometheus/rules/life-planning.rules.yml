@@ -1,0 +1,43 @@
+groups:
+  - name: life-planning-sli
+    interval: 30s
+    rules:
+      - record: life_planning:sli_error:ratio_rate5m
+        expr: |
+          sum(rate(life_planning_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(life_planning_http_requests_total[5m])), 0.000001)
+      - record: life_planning:sli_availability:ratio_rate5m
+        expr: 1 - life_planning:sli_error:ratio_rate5m
+      - record: life_planning:sli_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(life_planning_http_request_duration_seconds_bucket[5m]))
+          )
+
+  - name: life-planning-alerts
+    rules:
+      - alert: LifePlanningTargetDown
+        expr: up{job="life-planning"} != 1
+        for: 2m
+        labels: {severity: critical, service: life-planning}
+        annotations:
+          summary: "Life Planning metrics target is down"
+      - alert: LifePlanningDatabaseNotReady
+        expr: life_planning_database_ready != 1
+        for: 2m
+        labels: {severity: critical, service: life-planning}
+        annotations:
+          summary: "Life Planning database readiness failed"
+      - alert: LifePlanningHighErrorRatio
+        expr: life_planning:sli_error:ratio_rate5m > 0.05
+        for: 10m
+        labels: {severity: warning, service: life-planning}
+        annotations:
+          summary: "Authenticated API 5xx ratio is above 5%"
+      - alert: LifePlanningHighP95Latency
+        expr: life_planning:sli_latency:p95_5m > 1.5
+        for: 15m
+        labels: {severity: warning, service: life-planning}
+        annotations:
+          summary: "Authenticated API p95 latency is above 1.5 seconds"

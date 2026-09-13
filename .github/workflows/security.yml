@@ -14,48 +14,109 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  gitleaks:
+  secrets:
     name: Gitleaks secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Scan tracked source for secrets
+      - name: Scan current tracked source
         shell: bash
         run: |
           set -euo pipefail
-
           docker run --rm \
             -v "$PWD:/repo:ro" \
             ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:b109bc5f8f76a38196a3e413704fc5b9e3c32360bce4e4b603bd6f45b3721dbb \
             dir /repo \
+            --config /repo/.gitleaks.toml \
             --redact=100 \
             --no-banner
 
-  semgrep:
+  sast:
     name: Semgrep SAST
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
-    container:
-      image: semgrep/semgrep:1.176.0
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Run security SAST
+      - name: Run repository security rules
         shell: bash
         run: |
           set -euo pipefail
-
-          semgrep scan \
+          docker run --rm \
+            -v "$PWD:/src:ro" \
+            -w /src \
+            semgrep/semgrep:1.176.0 \
+            semgrep scan \
+            --config .semgrep.yml \
             --config p/security-audit \
             --config p/owasp-top-ten \
             --severity ERROR \
             --error \
             --metrics=off \
             .
+
+  filesystem:
+    name: Trivy filesystem and IaC
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Scan dependencies, secrets and misconfiguration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD:/workspace:ro" \
+            aquasec/trivy:0.74.0 \
+            fs /workspace \
+            --scanners vuln,misconfig \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --ignorefile /workspace/.trivyignore \
+            --exit-code 1 \
+            --skip-dirs /workspace/node_modules \
+            --skip-dirs /workspace/.next \
+            --skip-dirs /workspace/.git \
+            --skip-dirs /workspace/.private \
+            --skip-dirs /workspace/.reference \
+            --skip-dirs /workspace/infra/terraform/.terraform
+
+  image:
+    name: Image scan and SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Build immutable CI image
+        run: docker build --target runner --tag life-planning:security-${{ github.sha }} .
+      - name: Trivy image vulnerability gate
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/workspace:ro" \
+            aquasec/trivy:0.74.0 \
+            image life-planning:security-${{ github.sha }} \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --ignorefile /workspace/.trivyignore \
+            --exit-code 1
+      - name: Generate CycloneDX SBOM
+        run: |
+          mkdir -p artifacts/security
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:v1.51.1 \
+            life-planning:security-${{ github.sha }} \
+            -o cyclonedx-json \
+            > artifacts/security/sbom.cdx.json
+          python3 -m json.tool artifacts/security/sbom.cdx.json >/dev/null
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-sbom-${{ github.sha }}
+          path: artifacts/security/sbom.cdx.json
+          retention-days: 30

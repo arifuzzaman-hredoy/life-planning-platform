@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: life-planning-stable
+  namespace: life-planning
+spec:
+  selector:
+    app: life-planning
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: life-planning-canary
+  namespace: life-planning
+spec:
+  selector:
+    app: life-planning
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: life-planning-active
+  namespace: life-planning
+spec:
+  selector:
+    app: life-planning
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: life-planning-preview
+  namespace: life-planning
+spec:
+  selector:
+    app: life-planning
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

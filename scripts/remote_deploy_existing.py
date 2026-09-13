@@ -20,6 +20,7 @@ import paramiko
 
 
 RELEASE_PATTERN = re.compile(r"[0-9a-f]{40}")
+APPROVED_HOST = "198.54.121.88"
 
 
 def load_credentials(path: Path) -> dict[str, str]:
@@ -40,10 +41,10 @@ def load_credentials(path: Path) -> dict[str, str]:
             "SSH credential file is incomplete"
         )
 
-    return {
-        key: str(document[key])
-        for key in required
-    }
+    credentials = {key: str(document[key]) for key in required}
+    if credentials["host"] != APPROVED_HOST:
+        raise ValueError("This deployment targets only the approved VPS")
+    return credentials
 
 
 def connect(
@@ -257,6 +258,8 @@ test -d "$RELEASE_ROOT"
 test -f "$RELEASE_ROOT/scripts/deploy.py"
 test -f "$RELEASE_ROOT/scripts/operations.py"
 test -f "$RELEASE_ROOT/scripts/observability_release.py"
+test -f "$RELEASE_ROOT/scripts/release_manifest.py"
+test -f "$RELEASE_ROOT/release-manifest.json"
 
 docker image inspect \
   "$IMAGE" \
@@ -265,6 +268,11 @@ docker image inspect \
 docker image inspect \
   "$MIGRATOR" \
   >/dev/null
+
+python3 "$RELEASE_ROOT/scripts/release_manifest.py" verify \
+  --release {shlex.quote(args.release)} \
+  --source-archive "$RELEASE_ROOT/source.tar" \
+  --manifest "$RELEASE_ROOT/release-manifest.json"
 
 echo "Release source : PRESENT"
 echo "Application    : PRESENT"

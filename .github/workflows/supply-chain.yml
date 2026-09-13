@@ -1,0 +1,178 @@
+name: Signed release image
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Validated full 40-character commit SHA from main"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: signed-release-${{ inputs.release_sha }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/life-planning-platform
+      REQUESTED_SHA: ${{ inputs.release_sha }}
+    steps:
+      - name: Validate requested release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "release_sha must be a full lowercase Git SHA" >&2
+            exit 2
+          }
+
+      - name: Checkout exact release
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Require release to be contained in main
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$REQUESTED_SHA"
+          git fetch origin main
+          git merge-base --is-ancestor "$REQUESTED_SHA" origin/main
+
+      - name: Require successful CI and security runs for exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${REQUESTED_SHA}&status=completed&per_page=100")"
+          for required in "Application checks" "DevSecOps security"; do
+            count="$(jq --arg required "$required" '[.workflow_runs[] | select(.name == $required and .conclusion == "success")] | length' <<<"$runs")"
+            if [ "$count" -lt 1 ]; then
+              echo "No successful '$required' workflow found for $REQUESTED_SHA" >&2
+              exit 2
+            fi
+          done
+
+      - name: Re-run source security gates before publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:b109bc5f8f76a38196a3e413704fc5b9e3c32360bce4e4b603bd6f45b3721dbb \
+            dir /repo --config /repo/.gitleaks.toml --redact=100 --no-banner
+          docker run --rm \
+            -v "$PWD:/src:ro" \
+            -w /src \
+            semgrep/semgrep:1.176.0 \
+            semgrep scan --config .semgrep.yml --config p/security-audit --config p/owasp-top-ten --severity ERROR --error --metrics=off .
+          docker run --rm \
+            -v "$PWD:/workspace:ro" \
+            aquasec/trivy:0.74.0 \
+            fs /workspace --scanners vuln,misconfig --severity HIGH,CRITICAL \
+            --ignore-unfixed --ignorefile /workspace/.trivyignore --exit-code 1 \
+            --skip-dirs /workspace/node_modules \
+            --skip-dirs /workspace/.next \
+            --skip-dirs /workspace/.git \
+            --skip-dirs /workspace/.private \
+            --skip-dirs /workspace/.reference \
+            --skip-dirs /workspace/infra/terraform/.terraform
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build release image locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --target runner --tag "$IMAGE:sha-$REQUESTED_SHA" .
+
+      - name: Trivy image gate before publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/workspace:ro" \
+            aquasec/trivy:0.74.0 \
+            image "$IMAGE:sha-$REQUESTED_SHA" \
+            --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /workspace/.trivyignore --exit-code 1
+
+      - name: Generate CycloneDX SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/security
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:v1.51.1 \
+            "$IMAGE:sha-$REQUESTED_SHA" \
+            -o cyclonedx-json > artifacts/security/sbom.cdx.json
+          python3 -m json.tool artifacts/security/sbom.cdx.json >/dev/null
+
+      - name: Push immutable image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE:sha-$REQUESTED_SHA"
+
+      - name: Resolve pushed digest
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$REQUESTED_SHA" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+            echo "Could not resolve immutable registry digest" >&2
+            exit 2
+          }
+          echo "ref=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.2
+
+      - name: Keyless sign immutable digest
+        env:
+          IMAGE_REF: ${{ steps.digest.outputs.ref }}
+        run: cosign sign --yes "$IMAGE_REF"
+
+      - name: Attest CycloneDX SBOM
+        env:
+          IMAGE_REF: ${{ steps.digest.outputs.ref }}
+        run: cosign attest --yes --type cyclonedx --predicate artifacts/security/sbom.cdx.json "$IMAGE_REF"
+
+      - name: Verify signature identity
+        env:
+          IMAGE_REF: ${{ steps.digest.outputs.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cosign verify "$IMAGE_REF" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp '^https://github.com/${{ github.repository }}/.github/workflows/supply-chain.yml@refs/heads/main$'
+
+      - name: Upload release SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-release-sbom-${{ inputs.release_sha }}
+          path: artifacts/security/sbom.cdx.json
+          retention-days: 90

@@ -1,0 +1,65 @@
+name: OWASP ZAP staging DAST
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "HTTPS staging URL. Production is intentionally rejected."
+        required: false
+        type: string
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      INPUT_TARGET: ${{ inputs.target_url }}
+      DEFAULT_TARGET: ${{ vars.STAGING_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select safe target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${INPUT_TARGET:-${DEFAULT_TARGET:-}}"
+          if [ -z "$target" ]; then
+            echo "No staging URL configured; scheduled DAST is skipped."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$target" in
+            https://myplan.oxytumzone.com*|http://myplan.oxytumzone.com*)
+              echo "Production DAST is blocked by policy." >&2
+              exit 2
+              ;;
+            https://*) ;;
+            *) echo "DAST target must use HTTPS." >&2; exit 2 ;;
+          esac
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "url=$target" >> "$GITHUB_OUTPUT"
+      - name: Run ZAP baseline against staging
+        if: steps.target.outputs.skip != 'true'
+        shell: bash
+        run: |
+          mkdir -p artifacts/zap
+          docker run --rm \
+            -v "$PWD/artifacts/zap:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t '${{ steps.target.outputs.url }}' \
+            -m 3 \
+            -J report.json \
+            -r report.html
+      - name: Upload ZAP reports
+        if: always() && steps.target.outputs.skip != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-staging-${{ github.run_id }}
+          path: artifacts/zap/
+          retention-days: 30

@@ -79,3 +79,5 @@ The public metrics request must return `404`. In Prometheus, `up{job="life-plann
 ## Scope boundary
 
 Phase 1A is metrics only. Centralized logs, tracing, alert routing, SLOs and external notification channels are intentionally deferred to later phases so each layer can be validated independently.
+
+See `docs/DEVSECOPS_SRE_ROADMAP.md` for the staged DevSecOps/SRE/Kubernetes maturity plan and activation boundaries.

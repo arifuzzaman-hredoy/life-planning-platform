@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: Life Planning SRE
+    orgId: 1
+    folder: Life Planning
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
