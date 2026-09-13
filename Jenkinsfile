@@ -71,6 +71,14 @@ pipeline {
             if (requested) {
 
               bat "@git cat-file -e ${requested}^{commit}"
+
+              bat """
+                @git merge-base --is-ancestor ${requested} origin/main || (
+                  echo ERROR: RELEASE_SHA is not contained in origin/main.
+                  exit /b 1
+                )
+              """
+
               bat "@git checkout --detach ${requested}"
 
             } else {
@@ -320,8 +328,7 @@ pipeline {
         '''
 
         bat '''
-          @set /p VALIDATED=<"%VALIDATION_DIR%\\%RELEASE%.ok" && ^
-          if not "%VALIDATED%"=="%RELEASE%" (
+          @findstr /x /c:"%RELEASE%" "%VALIDATION_DIR%\\%RELEASE%.ok" >nul || (
             echo ERROR: Validation receipt does not match release.
             exit /b 1
           )
