@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.git/
+.private/
+.reference/
+coverage/
+artifacts/
+playwright-report/
+test-results/
+infra/terraform/.terraform/
+**/*.min.js
+**/*.map

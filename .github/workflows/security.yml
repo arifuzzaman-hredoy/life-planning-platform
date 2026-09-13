@@ -1,0 +1,61 @@
+name: DevSecOps security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Scan tracked source for secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run --rm \
+            -v "$PWD:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:b109bc5f8f76a38196a3e413704fc5b9e3c32360bce4e4b603bd6f45b3721dbb \
+            dir /repo \
+            --redact=100 \
+            --no-banner
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    container:
+      image: semgrep/semgrep:1.176.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run security SAST
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          semgrep scan \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --severity ERROR \
+            --error \
+            --metrics=off \
+            .
