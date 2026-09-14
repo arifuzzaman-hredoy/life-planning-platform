@@ -17,37 +17,61 @@ jobs:
   zap:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     env:
       INPUT_TARGET: ${{ inputs.target_url }}
       DEFAULT_TARGET: ${{ vars.STAGING_URL }}
+
     steps:
       - uses: actions/checkout@v7
+
       - name: Select safe target
         id: target
         shell: bash
         run: |
           set -euo pipefail
+
           target="${INPUT_TARGET:-${DEFAULT_TARGET:-}}"
+
           if [ -z "$target" ]; then
             echo "No staging URL configured; scheduled DAST is skipped."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
           case "$target" in
             https://myplan.oxytumzone.com*|http://myplan.oxytumzone.com*)
               echo "Production DAST is blocked by policy." >&2
               exit 2
               ;;
-            https://*) ;;
-            *) echo "DAST target must use HTTPS." >&2; exit 2 ;;
+
+            https://staging.myplan.oxytumzone.com*)
+              ;;
+
+            *)
+              echo "DAST target must be the dedicated HTTPS staging host." >&2
+              exit 2
+              ;;
           esac
+
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "url=$target" >> "$GITHUB_OUTPUT"
+
       - name: Run ZAP baseline against staging
         if: steps.target.outputs.skip != 'true'
         shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p artifacts/zap
+
+          # The official ZAP container runs as its own unprivileged user.
+          # GitHub's checkout directory is runner-owned, so make only this
+          # disposable artifact directory writable by the scanner.
+          chmod 0777 artifacts/zap
+
+          set +e
+
           docker run --rm \
             -v "$PWD/artifacts/zap:/zap/wrk/:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
@@ -56,6 +80,47 @@ jobs:
             -m 3 \
             -J report.json \
             -r report.html
+
+          zap_rc=$?
+
+          set -e
+
+          # A scan is not accepted unless its evidence was actually produced.
+          test -s artifacts/zap/report.json || {
+            echo "ZAP JSON report was not generated." >&2
+            exit 3
+          }
+
+          test -s artifacts/zap/report.html || {
+            echo "ZAP HTML report was not generated." >&2
+            exit 3
+          }
+
+          # zap-baseline.py:
+          #   0 = no FAIL/WARN findings
+          #   1 = at least one FAIL finding
+          #   2 = WARN findings only
+          # Other codes are execution/tooling failures.
+          case "$zap_rc" in
+            0)
+              echo "ZAP baseline completed without FAIL or WARN findings."
+              ;;
+
+            1)
+              echo "ZAP baseline found blocking FAIL findings." >&2
+              exit 1
+              ;;
+
+            2)
+              echo "::warning::ZAP baseline completed with non-blocking WARN findings."
+              ;;
+
+            *)
+              echo "ZAP execution failed with exit code $zap_rc." >&2
+              exit "$zap_rc"
+              ;;
+          esac
+
       - name: Upload ZAP reports
         if: always() && steps.target.outputs.skip != 'true'
         uses: actions/upload-artifact@v7
@@ -63,3 +128,4 @@ jobs:
           name: zap-staging-${{ github.run_id }}
           path: artifacts/zap/
           retention-days: 30
+          if-no-files-found: error
