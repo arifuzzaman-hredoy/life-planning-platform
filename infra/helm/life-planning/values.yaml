@@ -24,7 +24,7 @@ resources:
     cpu: "1"
     memory: 640Mi
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 2
   maxReplicas: 4
   targetCPUUtilizationPercentage: 70
@@ -34,3 +34,19 @@ podDisruptionBudget:
 networkPolicy:
   enabled: true
   ingressNamespace: ingress-nginx
+
+migration:
+  enabled: true
+  image:
+    repository: ghcr.io/arifuzzaman-hredoy/life-planning-platform-migrator
+    pullPolicy: IfNotPresent
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 86400
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
