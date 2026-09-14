@@ -69,12 +69,12 @@ jobs:
             lint infra/helm/life-planning
           docker run --rm -v "$PWD:/work" -w /work alpine/helm:3.18.4 \
             template life-planning infra/helm/life-planning \
-            --set image.tag=${{ github.sha }} >/tmp/life-planning-production.yaml
+            --set image.tag=sha-${{ github.sha }} >/tmp/life-planning-production.yaml
           docker run --rm -v "$PWD:/work" -w /work alpine/helm:3.18.4 \
             template life-planning-staging infra/helm/life-planning \
             -f infra/helm/life-planning/values.yaml \
             -f infra/helm/life-planning/values-staging.yaml \
-            --set image.tag=${{ github.sha }} >/tmp/life-planning-staging.yaml
+            --set image.tag=sha-${{ github.sha }} >/tmp/life-planning-staging.yaml
           test -s /tmp/life-planning-production.yaml
           test -s /tmp/life-planning-staging.yaml
       - name: Validate observability configuration
