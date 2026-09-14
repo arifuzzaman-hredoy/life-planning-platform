@@ -27,7 +27,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: app
-          image: ghcr.io/arifuzzaman-hredoy/life-planning-platform:replace-with-immutable-sha
+          image: ghcr.io/arifuzzaman-hredoy/life-planning-platform:sha-replace-with-immutable-sha
           imagePullPolicy: IfNotPresent
           command: ["node", "--env-file=/run/secrets/app.env", "server.js"]
           ports: [{ name: http, containerPort: 3000 }]

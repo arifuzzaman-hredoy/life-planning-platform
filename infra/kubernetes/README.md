@@ -55,3 +55,11 @@ production release path:
 
 The migrator GHCR image must be published, scanned, signed and attested before
 this migration manifest is used against a real Kubernetes cluster.
+## Immutable release image contract
+
+Kubernetes and Helm releases must use the immutable Git SHA image tags produced by the signed release workflow.
+
+- Application: `ghcr.io/arifuzzaman-hredoy/life-planning-platform:sha-<SHA>`
+- Migrator: `ghcr.io/arifuzzaman-hredoy/life-planning-platform-migrator:sha-<SHA>`
+
+Run the migration job with the matching migrator SHA before rolling out the application image for that release.
