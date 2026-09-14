@@ -30,10 +30,7 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
 
   requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set(
-    "Content-Security-Policy",
-    contentSecurityPolicy,
-  );
+  requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
 
   const response = NextResponse.next({
     request: {
@@ -41,10 +38,7 @@ export function proxy(request: NextRequest) {
     },
   });
 
-  response.headers.set(
-    "Content-Security-Policy",
-    contentSecurityPolicy,
-  );
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
 
   return response;
 }
@@ -52,8 +46,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source:
-        "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
       missing: [
         {
           type: "header",
