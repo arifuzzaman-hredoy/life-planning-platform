@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 40
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/life-planning-platform
+      MIGRATOR_IMAGE: ghcr.io/${{ github.repository_owner }}/life-planning-platform-migrator
       REQUESTED_SHA: ${{ inputs.release_sha }}
     steps:
       - name: Validate requested release
@@ -103,6 +104,12 @@ jobs:
           set -euo pipefail
           docker build --target runner --tag "$IMAGE:sha-$REQUESTED_SHA" .
 
+      - name: Build migrator image locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --target migrator --tag "$MIGRATOR_IMAGE:sha-$REQUESTED_SHA" .
+
       - name: Trivy image gate before publish
         shell: bash
         run: |
@@ -112,6 +119,18 @@ jobs:
             -v "$PWD:/workspace:ro" \
             aquasec/trivy:0.74.0 \
             image "$IMAGE:sha-$REQUESTED_SHA" \
+            --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /workspace/.trivyignore --exit-code 1
+
+      - name: Trivy migrator image gate before publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/workspace:ro" \
+            aquasec/trivy:0.74.0 \
+            image "$MIGRATOR_IMAGE:sha-$REQUESTED_SHA" \
             --severity HIGH,CRITICAL --ignore-unfixed \
             --ignorefile /workspace/.trivyignore --exit-code 1
 
@@ -127,11 +146,29 @@ jobs:
             -o cyclonedx-json > artifacts/security/sbom.cdx.json
           python3 -m json.tool artifacts/security/sbom.cdx.json >/dev/null
 
+      - name: Generate migrator CycloneDX SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/security
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            ghcr.io/anchore/syft:v1.51.1 \
+            "$MIGRATOR_IMAGE:sha-$REQUESTED_SHA" \
+            -o cyclonedx-json > artifacts/security/migrator-sbom.cdx.json
+          python3 -m json.tool artifacts/security/migrator-sbom.cdx.json >/dev/null
+
       - name: Push immutable image
         shell: bash
         run: |
           set -euo pipefail
           docker push "$IMAGE:sha-$REQUESTED_SHA"
+
+      - name: Push immutable migrator image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "$MIGRATOR_IMAGE:sha-$REQUESTED_SHA"
 
       - name: Resolve pushed digest
         id: digest
@@ -145,6 +182,18 @@ jobs:
           }
           echo "ref=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve pushed migrator digest
+        id: migrator_digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(docker buildx imagetools inspect "$MIGRATOR_IMAGE:sha-$REQUESTED_SHA" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+            echo "Could not resolve immutable migrator registry digest" >&2
+            exit 2
+          }
+          echo "ref=$MIGRATOR_IMAGE@$digest" >> "$GITHUB_OUTPUT"
+
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2
         with:
@@ -155,10 +204,20 @@ jobs:
           IMAGE_REF: ${{ steps.digest.outputs.ref }}
         run: cosign sign --yes "$IMAGE_REF"
 
+      - name: Keyless sign immutable migrator digest
+        env:
+          MIGRATOR_IMAGE_REF: ${{ steps.migrator_digest.outputs.ref }}
+        run: cosign sign --yes "$MIGRATOR_IMAGE_REF"
+
       - name: Attest CycloneDX SBOM
         env:
           IMAGE_REF: ${{ steps.digest.outputs.ref }}
         run: cosign attest --yes --type cyclonedx --predicate artifacts/security/sbom.cdx.json "$IMAGE_REF"
+
+      - name: Attest migrator CycloneDX SBOM
+        env:
+          MIGRATOR_IMAGE_REF: ${{ steps.migrator_digest.outputs.ref }}
+        run: cosign attest --yes --type cyclonedx --predicate artifacts/security/migrator-sbom.cdx.json "$MIGRATOR_IMAGE_REF"
 
       - name: Verify signature identity
         env:
@@ -170,9 +229,26 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --certificate-identity-regexp '^https://github.com/${{ github.repository }}/.github/workflows/supply-chain.yml@refs/heads/main$'
 
+      - name: Verify migrator signature identity
+        env:
+          MIGRATOR_IMAGE_REF: ${{ steps.migrator_digest.outputs.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cosign verify "$MIGRATOR_IMAGE_REF" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp '^https://github.com/${{ github.repository }}/.github/workflows/supply-chain.yml@refs/heads/main$'
+
       - name: Upload release SBOM
         uses: actions/upload-artifact@v7
         with:
           name: signed-release-sbom-${{ inputs.release_sha }}
           path: artifacts/security/sbom.cdx.json
+          retention-days: 90
+
+      - name: Upload migrator release SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-migrator-release-sbom-${{ inputs.release_sha }}
+          path: artifacts/security/migrator-sbom.cdx.json
           retention-days: 90
