@@ -117,7 +117,7 @@ def main() -> None:
             raise SystemExit(f"Production load guard missing in {rel}")
 
     helm_values = read_required("infra/helm/life-planning/values.yaml")
-    if "tag: replace-with-immutable-sha" not in helm_values:
+    if "tag: sha-replace-with-immutable-sha" not in helm_values:
         raise SystemExit("Helm production values must not contain a mutable release tag")
 
     print("PlatformValidation=PASS")
