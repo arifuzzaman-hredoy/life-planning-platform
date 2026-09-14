@@ -59,6 +59,9 @@ spec:
         - name: secret
           secret:
             secretName: life-planning-secrets
+            items:
+              - key: app.env
+                path: app.env
             defaultMode: 0440
         - name: temporary
           emptyDir: { medium: Memory, sizeLimit: 64Mi }
