@@ -18,9 +18,15 @@ COPY prisma ./prisma
 COPY prisma.config.ts tsconfig.json ./
 COPY scripts/bootstrap.ts ./scripts/bootstrap.ts
 COPY src/lib ./src/lib
-RUN DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=life_planning npm run db:generate
+RUN DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=life_planning npm run db:generate \
+    && apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+        /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/pnpm /usr/local/bin/pnpx
 USER node
-CMD ["npm", "run", "db:migrate"]
+CMD ["node", "--env-file=/run/secrets/app.env", "node_modules/prisma/build/index.js", "migrate", "deploy"]
 
 FROM node:22.23.1-bookworm-slim AS runner
 WORKDIR /app
