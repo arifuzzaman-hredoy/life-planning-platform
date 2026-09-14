@@ -10,7 +10,7 @@ spec:
     targetRevision: main
     path: infra/helm/life-planning
     helm:
-      valueFiles: [values.yaml]
+      valueFiles: [values.yaml, values-production.yaml]
   destination:
     server: https://kubernetes.default.svc
     namespace: life-planning

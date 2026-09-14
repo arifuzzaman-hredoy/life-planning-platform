@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: ghcr.io/arifuzzaman-hredoy/life-planning-platform
-  tag: replace-with-immutable-sha
+  tag: sha-9aa2ad91ca787e24aedac62a49f8f9b5e70565da
 config:
   appUrl: https://staging.myplan.oxytumzone.com
 secret:

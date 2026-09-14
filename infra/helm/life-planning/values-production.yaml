@@ -1,0 +1,5 @@
+# GitOps production release pin.
+# Only promote a successfully validated and signed immutable sha-<40-char-SHA> tag.
+# Production Argo CD remains manual-sync; changing this file does not itself sync production.
+image:
+  tag: sha-9aa2ad91ca787e24aedac62a49f8f9b5e70565da
