@@ -1,0 +1,151 @@
+name: Promotion guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: promotion-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  promotion-guard:
+    name: Promotion guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Run promotion validator unit tests
+        run: python3 -m unittest scripts/test_validate_promotion.py
+
+      - name: Resolve comparison base
+        id: base
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF_NAME: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base_ref="origin/$BASE_REF_NAME"
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ -n "${BEFORE_SHA:-}" ]] && \
+               [[ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+              base_ref="$BEFORE_SHA"
+            else
+              base_ref="${CURRENT_SHA}^"
+            fi
+          else
+            base_ref="${CURRENT_SHA}^"
+          fi
+
+          git cat-file -e "${base_ref}^{commit}"
+
+          echo "base_ref=$base_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Validate promotion ordering
+        id: promotion
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.base.outputs.base_ref }}
+        run: |
+          set -euo pipefail
+
+          result="$(
+            python3 scripts/validate_promotion.py \
+              --base-ref "$BASE_REF" \
+              --json
+          )"
+
+          printf '%s\n' "$result"
+
+          staging_tag="$(
+            printf '%s' "$result" |
+              python3 -c 'import json,sys; print(json.load(sys.stdin)["staging_tag"])'
+          )"
+
+          production_tag="$(
+            printf '%s' "$result" |
+              python3 -c 'import json,sys; print(json.load(sys.stdin)["production_tag"])'
+          )"
+
+          echo "staging_tag=$staging_tag" >> "$GITHUB_OUTPUT"
+          echo "production_tag=$production_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR for verification
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.2
+
+      - name: Verify signed environment releases
+        shell: bash
+        env:
+          STAGING_TAG: ${{ steps.promotion.outputs.staging_tag }}
+          PRODUCTION_TAG: ${{ steps.promotion.outputs.production_tag }}
+          APP_IMAGE: ghcr.io/${{ github.repository_owner }}/life-planning-platform
+          MIGRATOR_IMAGE: ghcr.io/${{ github.repository_owner }}/life-planning-platform-migrator
+          CERTIFICATE_IDENTITY: ^https://github.com/${{ github.repository }}/.github/workflows/supply-chain.yml@refs/heads/main$
+          OIDC_ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          set -euo pipefail
+
+          mapfile -t tags < <(
+            printf '%s\n' \
+              "$STAGING_TAG" \
+              "$PRODUCTION_TAG" |
+              sort -u
+          )
+
+          for tag in "${tags[@]}"; do
+            echo "Verifying signed release: $tag"
+
+            cosign verify \
+              --certificate-oidc-issuer "$OIDC_ISSUER" \
+              --certificate-identity-regexp "$CERTIFICATE_IDENTITY" \
+              "${APP_IMAGE}:${tag}"
+
+            cosign verify \
+              --certificate-oidc-issuer "$OIDC_ISSUER" \
+              --certificate-identity-regexp "$CERTIFICATE_IDENTITY" \
+              "${MIGRATOR_IMAGE}:${tag}"
+          done
+
+      - name: Promotion guard summary
+        shell: bash
+        env:
+          STAGING_TAG: ${{ steps.promotion.outputs.staging_tag }}
+          PRODUCTION_TAG: ${{ steps.promotion.outputs.production_tag }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "## GitOps promotion guard"
+            echo
+            echo "- Promotion ordering: passed"
+            echo "- Immutable SHA tag format: passed"
+            echo "- Application Cosign signature: passed"
+            echo "- Migrator Cosign signature: passed"
+            echo "- Staging tag: \`$STAGING_TAG\`"
+            echo "- Production tag: \`$PRODUCTION_TAG\`"
+          } >> "$GITHUB_STEP_SUMMARY"
