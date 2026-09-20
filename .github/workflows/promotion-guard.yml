@@ -87,7 +87,7 @@ jobs:
           echo "production_tag=$production_tag" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR for verification
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
