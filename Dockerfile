@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22.23.1-bookworm-slim AS dependencies
+FROM node:26.8.2-bookworm-slim AS dependencies
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssl && rm -rf /var/lib/apt/lists/*
@@ -28,7 +28,7 @@ RUN DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=life_plann
 USER node
 CMD ["node", "--env-file=/run/secrets/app.env", "node_modules/prisma/build/index.js", "migrate", "deploy"]
 
-FROM node:22.23.1-bookworm-slim AS runner
+FROM node:26.8.2-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 # Apply available Debian security fixes and remove package-manager tooling that
